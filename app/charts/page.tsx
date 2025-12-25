@@ -12,6 +12,7 @@ import { Treemap } from '@/components/charts/treemap';
 import { Boxplot } from '@/components/charts/boxplot';
 import { FunnelChart } from '@/components/charts/funnel-chart';
 import { SankeyDiagram } from '@/components/charts/sankey-diagram';
+import { ChartBuilder } from '@/components/charts/chart-builder';
 
 // Sample data generators
 const generateTimeSeries = () => {
@@ -48,14 +49,20 @@ export default function ChartsGalleryPage() {
           </p>
         </div>
 
-        <Tabs defaultValue="timeseries" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+        <Tabs defaultValue="builder" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="builder">Builder</TabsTrigger>
             <TabsTrigger value="timeseries">Time-Series</TabsTrigger>
             <TabsTrigger value="statistical">Statistical</TabsTrigger>
             <TabsTrigger value="distribution">Distribution</TabsTrigger>
             <TabsTrigger value="comparison">Comparison</TabsTrigger>
             <TabsTrigger value="flow">Flow</TabsTrigger>
           </TabsList>
+
+          {/* Chart Builder */}
+          <TabsContent value="builder">
+            <ChartBuilder />
+          </TabsContent>
 
           {/* Time-Series Charts */}
           <TabsContent value="timeseries" className="space-y-6">

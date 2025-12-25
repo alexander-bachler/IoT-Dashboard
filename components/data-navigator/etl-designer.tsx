@@ -19,6 +19,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { TransformNode } from './transform-node';
 import { TransformationToolbox } from './transformation-toolbox';
+import { DataPreviewPanel } from './data-preview-panel';
 import {
   Play,
   Save,
@@ -390,6 +391,15 @@ export function ETLDesigner() {
           )}
         </div>
       </div>
+
+      {/* Data Preview Panel */}
+      {selectedNode && (
+        <DataPreviewPanel
+          nodeId={selectedNode.id}
+          nodeLabel={selectedNode.data.label}
+          rowsProcessed={selectedNode.data.rowCount || 0}
+        />
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="metric-card hover-scale">
