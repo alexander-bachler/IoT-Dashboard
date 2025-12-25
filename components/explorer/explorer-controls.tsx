@@ -21,12 +21,9 @@ interface Metric {
   unit?: string;
 }
 
-interface ExplorerControlsProps {
-  onRefresh: () => void;
-  isLoading?: boolean;
-}
+interface ExplorerControlsProps {}
 
-export function ExplorerControls({ onRefresh, isLoading }: ExplorerControlsProps) {
+export function ExplorerControls({}: ExplorerControlsProps = {}) {
   const [devices, setDevices] = useState<Device[]>([]);
   const [availableMetrics, setAvailableMetrics] = useState<Metric[]>([]);
 
@@ -92,20 +89,9 @@ export function ExplorerControls({ onRefresh, isLoading }: ExplorerControlsProps
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <span className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            Explorer Controls
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onRefresh}
-            disabled={isLoading || selectedMetricIds.length === 0}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+        <CardTitle className="flex items-center gap-2">
+          <BarChart3 className="h-5 w-5" />
+          Explorer Controls
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
