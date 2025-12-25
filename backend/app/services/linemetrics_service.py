@@ -262,6 +262,7 @@ async def sync_linemetrics_devices(
     db: AsyncSession,
     user: User,
     config: LineMetricsConfig,
+    data_source: DataSource,
 ) -> Dict[str, Any]:
     """
     Sync devices from LineMetrics to database
@@ -270,6 +271,7 @@ async def sync_linemetrics_devices(
         db: Database session
         user: Current user
         config: LineMetrics configuration
+        data_source: Existing LineMetrics DataSource
 
     Returns:
         Sync statistics
@@ -282,25 +284,6 @@ async def sync_linemetrics_devices(
     }
 
     async with LineMetricsService(config) as lm_service:
-        # Get or create LineMetrics data source
-        result = await db.execute(
-            select(DataSource).where(
-                DataSource.type == "linemetrics",
-                DataSource.user_id == user.id,
-            )
-        )
-        data_source = result.scalar_one_or_none()
-
-        if not data_source:
-            data_source = DataSource(
-                name="LineMetrics",
-                type="linemetrics",
-                status="active",
-                api_url=config.api_url,
-                user_id=user.id,
-            )
-            db.add(data_source)
-            await db.flush()
 
         # Fetch devices from LineMetrics
         try:
