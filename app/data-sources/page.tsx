@@ -20,7 +20,6 @@ import { DataSourceSkeleton } from '@/components/ui/skeleton-loader';
 import { NoDataSourcesState, ErrorState } from '@/components/ui/empty-state';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { Badge } from '@/components/ui/badge';
-import { AddLineMetricsDialog } from '@/components/data-sources/add-linemetrics-dialog';
 import { LineMetricsImportDialog } from '@/components/data-sources/linemetrics-import-dialog';
 import { toast } from 'sonner';
 
@@ -196,41 +195,109 @@ function DataSourceCard({ source }: { source: any }) {
   );
 }
 
-function AddDataSourceDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+function AddDataSourceDialog({ open, onOpenChange, onSuccess }: { open: boolean; onOpenChange: (open: boolean) => void; onSuccess?: () => void }) {
   const [name, setName] = useState('');
-  const [type, setType] = useState<'api' | 'mqtt' | 'database' | 'file'>('api');
+  const [type, setType] = useState<'api' | 'mqtt' | 'database' | 'file' | 'linemetrics'>('api');
   const [apiUrl, setApiUrl] = useState('');
   const [apiToken, setApiToken] = useState('');
+  const [clientId, setClientId] = useState('');
+  const [clientSecret, setClientSecret] = useState('');
   const [description, setDescription] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const { mutate: createSource, isPending } = useCreateDataSource();
 
-  const handleSubmit = () => {
-    createSource(
-      {
-        name,
-        type,
-        api_url: apiUrl,
-        api_token: apiToken,
-        description,
-      },
-      {
-        onSuccess: () => {
-          // Reset form
-          setName('');
-          setType('api');
-          setApiUrl('');
-          setApiToken('');
-          setDescription('');
-          onOpenChange(false);
-        },
+  const handleSubmit = async () => {
+    if (type === 'linemetrics') {
+      // Handle LineMetrics separately
+      setLoading(true);
+      try {
+        const response = await fetch('/api/v1/linemetrics/datasource', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: name,
+            api_url: apiUrl,
+            client_id: clientId,
+            client_secret: clientSecret,
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.detail || 'Failed to create LineMetrics data source');
+        }
+
+        const result = await response.json();
+        toast.success(
+          `LineMetrics data source "${result.name}" created successfully! Found ${result.device_count} devices.`
+        );
+
+        // Reset form
+        setName('');
+        setType('api');
+        setApiUrl('');
+        setClientId('');
+        setClientSecret('');
+        setDescription('');
+        onOpenChange(false);
+
+        if (onSuccess) {
+          onSuccess();
+        }
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to create LineMetrics data source');
+      } finally {
+        setLoading(false);
       }
-    );
+    } else {
+      // Handle generic data sources
+      createSource(
+        {
+          name,
+          type,
+          api_url: apiUrl,
+          api_token: apiToken,
+          description,
+        },
+        {
+          onSuccess: () => {
+            // Reset form
+            setName('');
+            setType('api');
+            setApiUrl('');
+            setApiToken('');
+            setDescription('');
+            onOpenChange(false);
+
+            if (onSuccess) {
+              onSuccess();
+            }
+          },
+        }
+      );
+    }
+  };
+
+  // Set default API URL when type changes to LineMetrics
+  useEffect(() => {
+    if (type === 'linemetrics' && !apiUrl) {
+      setApiUrl('https://rest-api.linemetrics.com');
+    }
+  }, [type]);
+
+  const isSubmitDisabled = () => {
+    if (type === 'linemetrics') {
+      return !name || !apiUrl || !clientId || !clientSecret || loading;
+    }
+    return !name || !apiUrl || !apiToken || isPending;
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-card">
+      <DialogContent className="glass-card sm:max-w-[550px]">
         <DialogHeader>
           <DialogTitle>Add Data Source</DialogTitle>
           <DialogDescription>
@@ -256,6 +323,7 @@ function AddDataSourceDialog({ open, onOpenChange }: { open: boolean; onOpenChan
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="linemetrics">LineMetrics</SelectItem>
                 <SelectItem value="api">API</SelectItem>
                 <SelectItem value="mqtt">MQTT</SelectItem>
                 <SelectItem value="database">Database</SelectItem>
@@ -270,38 +338,65 @@ function AddDataSourceDialog({ open, onOpenChange }: { open: boolean; onOpenChan
               id="apiUrl"
               value={apiUrl}
               onChange={(e) => setApiUrl(e.target.value)}
-              placeholder="https://api.example.com/v1"
+              placeholder={type === 'linemetrics' ? 'https://rest-api.linemetrics.com' : 'https://api.example.com/v1'}
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="apiToken">API Token *</Label>
-            <Input
-              id="apiToken"
-              type="password"
-              value={apiToken}
-              onChange={(e) => setApiToken(e.target.value)}
-              placeholder="Your API authentication token"
-            />
-          </div>
+          {type === 'linemetrics' ? (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="clientId">Client ID *</Label>
+                <Input
+                  id="clientId"
+                  value={clientId}
+                  onChange={(e) => setClientId(e.target.value)}
+                  placeholder="Your LineMetrics OAuth2 Client ID"
+                />
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Input
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description"
-            />
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="clientSecret">Client Secret *</Label>
+                <Input
+                  id="clientSecret"
+                  type="password"
+                  value={clientSecret}
+                  onChange={(e) => setClientSecret(e.target.value)}
+                  placeholder="Your LineMetrics OAuth2 Client Secret"
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="apiToken">API Token *</Label>
+                <Input
+                  id="apiToken"
+                  type="password"
+                  value={apiToken}
+                  onChange={(e) => setApiToken(e.target.value)}
+                  placeholder="Your API authentication token"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Input
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Optional description"
+                />
+              </div>
+            </>
+          )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending || loading}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!name || !apiUrl || !apiToken || isPending}>
-            {isPending ? 'Adding...' : 'Add Source'}
+          <Button onClick={handleSubmit} disabled={isSubmitDisabled()}>
+            {(isPending || loading) ? 'Adding...' : 'Add Source'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -331,22 +426,16 @@ function DataSourcesContent() {
 
   if (dataSources.length === 0) {
     return (
-      <>
-        <NoDataSourcesState onAdd={() => setIsAddDialogOpen(true)} />
-        <AddDataSourceDialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} />
-      </>
+      <NoDataSourcesState onAdd={() => setIsAddDialogOpen(true)} />
     );
   }
 
   return (
-    <>
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {dataSources.map((source) => (
-          <DataSourceCard key={source.id} source={source} />
-        ))}
-      </div>
-      <AddDataSourceDialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} />
-    </>
+    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {dataSources.map((source) => (
+        <DataSourceCard key={source.id} source={source} />
+      ))}
+    </div>
   );
 }
 
@@ -412,14 +501,12 @@ function StatsCards({ dataSources }: { dataSources: any[] }) {
 
 export default function DataSourcesPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isAddLineMetricsOpen, setIsAddLineMetricsOpen] = useState(false);
   const { data, refetch } = useDataSources({ page: 1, page_size: 50 });
 
   // Safely extract data sources array
   const dataSources = data?.data ?? [];
 
-  const handleLineMetricsSuccess = () => {
-    setIsAddLineMetricsOpen(false);
+  const handleAddSuccess = () => {
     refetch();
   };
 
@@ -438,13 +525,10 @@ export default function DataSourcesPage() {
               Manage connections to your IoT data providers and platforms
             </p>
           </div>
-          <div className="flex gap-2">
-            <AddLineMetricsDialog onSuccess={handleLineMetricsSuccess} />
-            <Button onClick={() => setIsAddDialogOpen(true)} variant="outline" className="gap-2">
-              <Plus className="h-4 w-4" />
-              Add Generic
-            </Button>
-          </div>
+          <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add Data Source
+          </Button>
         </div>
 
         {/* Stats Cards */}
@@ -452,6 +536,13 @@ export default function DataSourcesPage() {
 
         {/* Data Sources List */}
         <DataSourcesContent />
+
+        {/* Add Data Source Dialog */}
+        <AddDataSourceDialog
+          open={isAddDialogOpen}
+          onOpenChange={setIsAddDialogOpen}
+          onSuccess={handleAddSuccess}
+        />
       </div>
     </ErrorBoundary>
   );
