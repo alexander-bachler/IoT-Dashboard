@@ -229,10 +229,12 @@ export function ETLDesigner() {
   };
 
   return (
-    <div className="space-y-4">
-      <Card className="p-4 bg-purple-500/10 border-purple-500/20">
+    <div className="space-y-4 animate-slide-up">
+      <div className="rounded-xl border p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/20 backdrop-blur-sm">
         <div className="flex items-start gap-3">
-          <Info className="h-5 w-5 text-purple-500 mt-0.5" />
+          <div className="p-2 rounded-lg bg-purple-500/20">
+            <Info className="h-5 w-5 text-purple-500" />
+          </div>
           <div className="flex-1">
             <h3 className="font-semibold text-sm mb-1">ETL Pipeline Designer</h3>
             <p className="text-sm text-muted-foreground">
@@ -241,7 +243,7 @@ export function ETLDesigner() {
             </p>
           </div>
         </div>
-      </Card>
+      </div>
 
       <div className="flex gap-2 flex-wrap">
         <Button onClick={handleRunPipeline} disabled={isRunning} className="gap-2">
@@ -390,26 +392,26 @@ export function ETLDesigner() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-4">
+        <div className="metric-card hover-scale">
           <div className="text-sm text-muted-foreground mb-1">Schritte</div>
-          <div className="text-2xl font-bold">{nodes.length}</div>
-        </Card>
-        <Card className="p-4">
+          <div className="text-3xl font-bold gradient-text">{nodes.length}</div>
+        </div>
+        <div className="metric-card hover-scale">
           <div className="text-sm text-muted-foreground mb-1">Verbindungen</div>
-          <div className="text-2xl font-bold">{edges.length}</div>
-        </Card>
-        <Card className="p-4">
+          <div className="text-3xl font-bold gradient-text">{edges.length}</div>
+        </div>
+        <div className="metric-card hover-scale">
           <div className="text-sm text-muted-foreground mb-1">Input Zeilen</div>
-          <div className="text-2xl font-bold">
+          <div className="text-3xl font-bold gradient-text">
             {nodes[0]?.data.rowCount?.toLocaleString() || '0'}
           </div>
-        </Card>
-        <Card className="p-4">
+        </div>
+        <div className="metric-card hover-scale">
           <div className="text-sm text-muted-foreground mb-1">Output Zeilen</div>
-          <div className="text-2xl font-bold">
+          <div className="text-3xl font-bold gradient-text">
             {nodes[nodes.length - 1]?.data.rowCount?.toLocaleString() || '0'}
           </div>
-        </Card>
+        </div>
       </div>
     </div>
   );

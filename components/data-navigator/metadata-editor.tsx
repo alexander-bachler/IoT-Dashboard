@@ -201,10 +201,12 @@ export function MetadataEditor() {
   };
 
   return (
-    <div className="space-y-4">
-      <Card className="p-4 bg-green-500/10 border-green-500/20">
+    <div className="space-y-4 animate-slide-up">
+      <div className="success-banner">
         <div className="flex items-start gap-3">
-          <Info className="h-5 w-5 text-green-500 mt-0.5" />
+          <div className="p-2 rounded-lg bg-green-500/20">
+            <Info className="h-5 w-5 text-green-500" />
+          </div>
           <div className="flex-1">
             <h3 className="font-semibold text-sm mb-1">Metadaten-Editor</h3>
             <p className="text-sm text-muted-foreground">
@@ -213,7 +215,7 @@ export function MetadataEditor() {
             </p>
           </div>
         </div>
-      </Card>
+      </div>
 
       <div className="flex gap-2 items-center justify-between">
         <Select
@@ -255,12 +257,12 @@ export function MetadataEditor() {
       </div>
 
       {hasChanges && (
-        <Card className="p-3 bg-yellow-500/10 border-yellow-500/20">
+        <div className="warning-banner">
           <div className="flex items-center gap-2 text-sm text-yellow-600 dark:text-yellow-400">
             <AlertCircle className="h-4 w-4" />
             Sie haben ungespeicherte Änderungen
           </div>
-        </Card>
+        </div>
       )}
 
       <Card>
@@ -447,22 +449,22 @@ export function MetadataEditor() {
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-4">
+        <div className="metric-card hover-scale">
           <div className="text-sm text-muted-foreground mb-1">Spalten gesamt</div>
-          <div className="text-2xl font-bold">{selectedTable.columns.length}</div>
-        </Card>
-        <Card className="p-4">
+          <div className="text-3xl font-bold gradient-text">{selectedTable.columns.length}</div>
+        </div>
+        <div className="metric-card hover-scale">
           <div className="text-sm text-muted-foreground mb-1">Geänderte Felder</div>
-          <div className="text-2xl font-bold">
+          <div className="text-3xl font-bold gradient-text">
             {selectedTable.columns.filter((c) => c.isModified).length}
           </div>
-        </Card>
-        <Card className="p-4">
+        </div>
+        <div className="metric-card hover-scale">
           <div className="text-sm text-muted-foreground mb-1">Nullable Spalten</div>
-          <div className="text-2xl font-bold">
+          <div className="text-3xl font-bold gradient-text">
             {selectedTable.columns.filter((c) => c.nullable).length}
           </div>
-        </Card>
+        </div>
       </div>
     </div>
   );

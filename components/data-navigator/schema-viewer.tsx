@@ -203,10 +203,12 @@ export function SchemaViewer() {
   }, []);
 
   return (
-    <div className="space-y-4">
-      <Card className="p-4 bg-blue-500/10 border-blue-500/20">
+    <div className="space-y-4 animate-slide-up">
+      <div className="info-banner">
         <div className="flex items-start gap-3">
-          <Info className="h-5 w-5 text-blue-500 mt-0.5" />
+          <div className="p-2 rounded-lg bg-blue-500/20">
+            <Info className="h-5 w-5 text-blue-500" />
+          </div>
           <div className="flex-1">
             <h3 className="font-semibold text-sm mb-1">Schema-Übersicht</h3>
             <p className="text-sm text-muted-foreground">
@@ -215,7 +217,7 @@ export function SchemaViewer() {
             </p>
           </div>
         </div>
-      </Card>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         <div className="lg:col-span-3">
@@ -296,20 +298,20 @@ export function SchemaViewer() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-4">
+        <div className="metric-card group hover-scale">
           <div className="text-sm text-muted-foreground mb-1">Tabellen gesamt</div>
-          <div className="text-2xl font-bold">{nodes.length}</div>
-        </Card>
-        <Card className="p-4">
+          <div className="text-3xl font-bold gradient-text">{nodes.length}</div>
+        </div>
+        <div className="metric-card group hover-scale">
           <div className="text-sm text-muted-foreground mb-1">Beziehungen</div>
-          <div className="text-2xl font-bold">{edges.length}</div>
-        </Card>
-        <Card className="p-4">
+          <div className="text-3xl font-bold gradient-text">{edges.length}</div>
+        </div>
+        <div className="metric-card group hover-scale">
           <div className="text-sm text-muted-foreground mb-1">Hypertables</div>
-          <div className="text-2xl font-bold">
+          <div className="text-3xl font-bold gradient-text">
             {nodes.filter((n) => n.data.isHypertable).length}
           </div>
-        </Card>
+        </div>
       </div>
     </div>
   );
