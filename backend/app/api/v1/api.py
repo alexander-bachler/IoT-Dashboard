@@ -4,7 +4,17 @@ Includes all endpoint routers
 """
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, users, dashboards, data_sources, devices, metrics, measurements, anomalies
+from app.api.v1.endpoints import (
+    auth,
+    users,
+    dashboards,
+    data_sources,
+    devices,
+    metrics,
+    measurements,
+    anomalies,
+    linemetrics,
+)
 
 api_router = APIRouter()
 
@@ -17,3 +27,4 @@ api_router.include_router(devices.router, prefix="/devices", tags=["Devices"])
 api_router.include_router(metrics.router, prefix="/metrics", tags=["Metrics"])
 api_router.include_router(measurements.router, prefix="/measurements", tags=["Measurements"])
 api_router.include_router(anomalies.router, prefix="/anomalies", tags=["Anomalies"])
+api_router.include_router(linemetrics.router, prefix="/linemetrics", tags=["LineMetrics Integration"])
