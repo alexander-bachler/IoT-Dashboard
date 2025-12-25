@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -18,7 +18,8 @@ import '@xyflow/react/dist/style.css';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { TableNode } from './table-node';
-import { Info, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { Info, ZoomIn, ZoomOut, Maximize2, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 
 const nodeTypes = {
   table: TableNode,
@@ -199,6 +200,7 @@ export function SchemaViewer() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [loading, setLoading] = useState(false);
 
   // Helper to get typed data from node
   const getNodeData = (node: Node): TableNodeData => node.data as unknown as TableNodeData;
@@ -212,21 +214,51 @@ export function SchemaViewer() {
     setSelectedNode(node);
   }, []);
 
+  // Load dynamic schema from backend
+  const loadSchema = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/v1/schema/nodes');
+      if (!response.ok) {
+        throw new Error('Failed to load schema');
+      }
+      const data = await response.json();
+
+      setNodes(data.nodes);
+      setEdges(data.edges);
+      toast.success(`Schema loaded: ${data.data_source_count} data sources found`);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to load schema');
+    } finally {
+      setLoading(false);
+    }
+  }, [setNodes, setEdges]);
+
+  // Load schema on mount
+  useEffect(() => {
+    loadSchema();
+  }, [loadSchema]);
+
   return (
     <div className="space-y-4 animate-slide-up">
-      <div className="info-banner">
-        <div className="flex items-start gap-3">
-          <div className="p-2 rounded-lg bg-blue-500/20">
-            <Info className="h-5 w-5 text-blue-500" />
-          </div>
-          <div className="flex-1">
-            <h3 className="font-semibold text-sm mb-1">Schema-Übersicht</h3>
-            <p className="text-sm text-muted-foreground">
-              Visualisierung der Datenbankstruktur und Beziehungen. Klicken Sie auf eine Tabelle für Details.
-              Blaue Linien zeigen Standard-Beziehungen, rote Linien zeigen Anomalie-Referenzen.
-            </p>
+      <div className="flex items-center justify-between">
+        <div className="info-banner flex-1 mr-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-blue-500/20">
+              <Info className="h-5 w-5 text-blue-500" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-sm mb-1">Schema-Übersicht</h3>
+              <p className="text-sm text-muted-foreground">
+                Visualisierung der Datenbankstruktur und Beziehungen. Grüne Linien = Data Sources, Blaue Linien = Beziehungen, Rote Linien = Anomalien.
+              </p>
+            </div>
           </div>
         </div>
+        <Button onClick={loadSchema} disabled={loading} variant="outline" size="sm" className="gap-2">
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">

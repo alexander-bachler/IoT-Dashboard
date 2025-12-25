@@ -2,11 +2,16 @@
 Data Source endpoints
 CRUD operations for data sources
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import List, Optional
 from uuid import UUID
+import os
+import aiofiles
+from pathlib import Path
+import pandas as pd
+from datetime import datetime
 
 from app.db.database import get_db
 from app.models.user import User
@@ -15,6 +20,11 @@ from app.schemas.data_source import DataSourceCreate, DataSourceUpdate, DataSour
 from app.api.v1.endpoints.auth import get_current_user
 
 router = APIRouter()
+
+# Configure upload directory
+UPLOAD_DIR = Path("/home/user/IoT-Dashboard/backend/data/uploads")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+ALLOWED_EXTENSIONS = {'.csv', '.xlsx', '.xls', '.json', '.parquet'}
 
 
 @router.get("/", response_model=List[DataSourceResponse])
@@ -213,10 +223,157 @@ async def sync_data_source(
         )
 
     # Update last_sync timestamp
-    from datetime import datetime
     data_source.last_sync = datetime.utcnow()
 
     await db.commit()
     await db.refresh(data_source)
 
     return data_source
+
+
+@router.post("/{data_source_id}/upload")
+async def upload_file_to_datasource(
+    data_source_id: UUID,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Upload a file to a file-based data source"""
+    # Verify data source exists and is owned by user
+    result = await db.execute(
+        select(DataSource).where(
+            DataSource.id == data_source_id,
+            DataSource.owner_id == current_user.id
+        )
+    )
+    data_source = result.scalar_one_or_none()
+
+    if not data_source:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Data source not found"
+        )
+
+    # Verify it's a file type data source
+    if data_source.type != "file":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Data source must be of type 'file' to upload files"
+        )
+
+    # Validate file extension
+    file_ext = Path(file.filename).suffix.lower()
+    if file_ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File type {file_ext} not allowed. Allowed types: {', '.join(ALLOWED_EXTENSIONS)}"
+        )
+
+    # Create user-specific subdirectory
+    user_upload_dir = UPLOAD_DIR / str(current_user.id) / str(data_source_id)
+    user_upload_dir.mkdir(parents=True, exist_ok=True)
+
+    # Generate unique filename
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    safe_filename = f"{timestamp}_{file.filename}"
+    file_path = user_upload_dir / safe_filename
+
+    # Save file
+    try:
+        async with aiofiles.open(file_path, 'wb') as f:
+            content = await file.read()
+            await f.write(content)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save file: {str(e)}"
+        )
+
+    # Try to parse file and get basic stats
+    file_stats = {
+        "filename": safe_filename,
+        "original_filename": file.filename,
+        "size_bytes": len(content),
+        "file_path": str(file_path),
+        "uploaded_at": timestamp
+    }
+
+    try:
+        if file_ext == '.csv':
+            df = pd.read_csv(file_path)
+            file_stats["rows"] = len(df)
+            file_stats["columns"] = len(df.columns)
+            file_stats["column_names"] = df.columns.tolist()
+        elif file_ext in ['.xlsx', '.xls']:
+            df = pd.read_excel(file_path)
+            file_stats["rows"] = len(df)
+            file_stats["columns"] = len(df.columns)
+            file_stats["column_names"] = df.columns.tolist()
+        elif file_ext == '.json':
+            df = pd.read_json(file_path)
+            file_stats["rows"] = len(df)
+            file_stats["columns"] = len(df.columns)
+            file_stats["column_names"] = df.columns.tolist()
+        elif file_ext == '.parquet':
+            df = pd.read_parquet(file_path)
+            file_stats["rows"] = len(df)
+            file_stats["columns"] = len(df.columns)
+            file_stats["column_names"] = df.columns.tolist()
+    except Exception as e:
+        file_stats["parse_error"] = str(e)
+
+    # Update data source with file path
+    data_source.api_url = str(file_path)
+    data_source.last_sync = datetime.utcnow()
+    data_source.is_active = True
+
+    await db.commit()
+    await db.refresh(data_source)
+
+    return {
+        "message": "File uploaded successfully",
+        "data_source_id": str(data_source_id),
+        "file_stats": file_stats
+    }
+
+
+@router.get("/{data_source_id}/files")
+async def list_files(
+    data_source_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """List all files uploaded to a file-based data source"""
+    # Verify data source exists and is owned by user
+    result = await db.execute(
+        select(DataSource).where(
+            DataSource.id == data_source_id,
+            DataSource.owner_id == current_user.id,
+            DataSource.type == "file"
+        )
+    )
+    data_source = result.scalar_one_or_none()
+
+    if not data_source:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File data source not found"
+        )
+
+    # List files in directory
+    user_upload_dir = UPLOAD_DIR / str(current_user.id) / str(data_source_id)
+
+    if not user_upload_dir.exists():
+        return {"files": []}
+
+    files = []
+    for file_path in user_upload_dir.iterdir():
+        if file_path.is_file():
+            stat = file_path.stat()
+            files.append({
+                "filename": file_path.name,
+                "size_bytes": stat.st_size,
+                "modified_at": datetime.fromtimestamp(stat.st_mtime).isoformat()
+            })
+
+    return {"files": files}

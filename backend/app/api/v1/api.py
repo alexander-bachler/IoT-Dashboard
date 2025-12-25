@@ -14,6 +14,7 @@ from app.api.v1.endpoints import (
     measurements,
     anomalies,
     linemetrics,
+    schema,
 )
 
 api_router = APIRouter()
@@ -28,3 +29,4 @@ api_router.include_router(metrics.router, prefix="/metrics", tags=["Metrics"])
 api_router.include_router(measurements.router, prefix="/measurements", tags=["Measurements"])
 api_router.include_router(anomalies.router, prefix="/anomalies", tags=["Anomalies"])
 api_router.include_router(linemetrics.router, prefix="/linemetrics", tags=["LineMetrics Integration"])
+api_router.include_router(schema.router, prefix="/schema", tags=["Schema & ETL"])

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Database, Plus, RefreshCw, CheckCircle, XCircle, Activity, TrendingUp, Trash2, Download, Zap } from 'lucide-react';
+import { Database, Plus, RefreshCw, CheckCircle, XCircle, Activity, TrendingUp, Trash2, Download, Zap, Upload } from 'lucide-react';
 import { format } from 'date-fns';
 import { useDataSources, useCreateDataSource, useSyncDataSource, useDeleteDataSource, useDataSourceStats } from '@/lib/hooks/use-data-sources';
 import { DataSourceSkeleton } from '@/components/ui/skeleton-loader';
@@ -204,6 +205,8 @@ function AddDataSourceDialog({ open, onOpenChange, onSuccess }: { open: boolean;
   const [clientSecret, setClientSecret] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const { mutate: createSource, isPending } = useCreateDataSource();
 
@@ -236,12 +239,7 @@ function AddDataSourceDialog({ open, onOpenChange, onSuccess }: { open: boolean;
         );
 
         // Reset form
-        setName('');
-        setType('api');
-        setApiUrl('');
-        setClientId('');
-        setClientSecret('');
-        setDescription('');
+        resetForm();
         onOpenChange(false);
 
         if (onSuccess) {
@@ -249,6 +247,64 @@ function AddDataSourceDialog({ open, onOpenChange, onSuccess }: { open: boolean;
         }
       } catch (error: any) {
         toast.error(error.message || 'Failed to create LineMetrics data source');
+      } finally {
+        setLoading(false);
+      }
+    } else if (type === 'file') {
+      // Handle file-based data sources
+      setLoading(true);
+      try {
+        // First create the data source
+        const createResponse = await fetch('/api/v1/data-sources', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name,
+            type: 'file',
+            api_url: '',
+            api_token: '',
+            description,
+          }),
+        });
+
+        if (!createResponse.ok) {
+          throw new Error('Failed to create file data source');
+        }
+
+        const createdSource = await createResponse.json();
+
+        // If a file is selected, upload it
+        if (selectedFile) {
+          const formData = new FormData();
+          formData.append('file', selectedFile);
+
+          const uploadResponse = await fetch(`/api/v1/data-sources/${createdSource.id}/upload`, {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!uploadResponse.ok) {
+            throw new Error('Failed to upload file');
+          }
+
+          const uploadResult = await uploadResponse.json();
+          toast.success(
+            `File "${selectedFile.name}" uploaded successfully! ${uploadResult.file_stats.rows || 0} rows detected.`
+          );
+        } else {
+          toast.success(`File data source "${name}" created successfully!`);
+        }
+
+        resetForm();
+        onOpenChange(false);
+
+        if (onSuccess) {
+          onSuccess();
+        }
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to create file data source');
       } finally {
         setLoading(false);
       }
@@ -264,12 +320,7 @@ function AddDataSourceDialog({ open, onOpenChange, onSuccess }: { open: boolean;
         },
         {
           onSuccess: () => {
-            // Reset form
-            setName('');
-            setType('api');
-            setApiUrl('');
-            setApiToken('');
-            setDescription('');
+            resetForm();
             onOpenChange(false);
 
             if (onSuccess) {
@@ -279,6 +330,18 @@ function AddDataSourceDialog({ open, onOpenChange, onSuccess }: { open: boolean;
         }
       );
     }
+  };
+
+  const resetForm = () => {
+    setName('');
+    setType('api');
+    setApiUrl('');
+    setApiToken('');
+    setClientId('');
+    setClientSecret('');
+    setDescription('');
+    setSelectedFile(null);
+    setUploadProgress(0);
   };
 
   // Set default API URL when type changes to LineMetrics
@@ -291,6 +354,9 @@ function AddDataSourceDialog({ open, onOpenChange, onSuccess }: { open: boolean;
   const isSubmitDisabled = () => {
     if (type === 'linemetrics') {
       return !name || !apiUrl || !clientId || !clientSecret || loading;
+    }
+    if (type === 'file') {
+      return !name || loading;
     }
     return !name || !apiUrl || !apiToken || isPending;
   };
@@ -332,18 +398,69 @@ function AddDataSourceDialog({ open, onOpenChange, onSuccess }: { open: boolean;
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="apiUrl">API URL *</Label>
-            <Input
-              id="apiUrl"
-              value={apiUrl}
-              onChange={(e) => setApiUrl(e.target.value)}
-              placeholder={type === 'linemetrics' ? 'https://rest-api.linemetrics.com' : 'https://api.example.com/v1'}
-            />
-          </div>
-
-          {type === 'linemetrics' ? (
+          {/* Conditional fields based on type */}
+          {type === 'file' ? (
             <>
+              <div className="space-y-2">
+                <Label htmlFor="file-upload">Upload File</Label>
+                <div className="border-2 border-dashed rounded-lg p-6 hover:border-blue-500 transition-colors">
+                  <input
+                    id="file-upload"
+                    type="file"
+                    accept=".csv,.xlsx,.xls,.json,.parquet"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setSelectedFile(e.target.files[0]);
+                      }
+                    }}
+                    className="hidden"
+                  />
+                  <label
+                    htmlFor="file-upload"
+                    className="flex flex-col items-center justify-center cursor-pointer"
+                  >
+                    <Upload className="h-10 w-10 text-muted-foreground mb-2" />
+                    {selectedFile ? (
+                      <div className="text-center">
+                        <p className="text-sm font-medium">{selectedFile.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {(selectedFile.size / 1024).toFixed(2)} KB
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <p className="text-sm font-medium">Click to upload or drag and drop</p>
+                        <p className="text-xs text-muted-foreground">
+                          CSV, Excel, JSON, or Parquet files
+                        </p>
+                      </div>
+                    )}
+                  </label>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Input
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Optional description"
+                />
+              </div>
+            </>
+          ) : type === 'linemetrics' ? (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="apiUrl">API URL *</Label>
+                <Input
+                  id="apiUrl"
+                  value={apiUrl}
+                  onChange={(e) => setApiUrl(e.target.value)}
+                  placeholder="https://rest-api.linemetrics.com"
+                />
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="clientId">Client ID *</Label>
                 <Input
@@ -367,6 +484,16 @@ function AddDataSourceDialog({ open, onOpenChange, onSuccess }: { open: boolean;
             </>
           ) : (
             <>
+              <div className="space-y-2">
+                <Label htmlFor="apiUrl">API URL *</Label>
+                <Input
+                  id="apiUrl"
+                  value={apiUrl}
+                  onChange={(e) => setApiUrl(e.target.value)}
+                  placeholder="https://api.example.com/v1"
+                />
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="apiToken">API Token *</Label>
                 <Input
@@ -525,10 +652,18 @@ export default function DataSourcesPage() {
               Manage connections to your IoT data providers and platforms
             </p>
           </div>
-          <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add Data Source
-          </Button>
+          <div className="flex gap-2">
+            <Link href="/data-navigator">
+              <Button variant="outline" className="gap-2">
+                <Zap className="h-4 w-4" />
+                Open Data Navigator
+              </Button>
+            </Link>
+            <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Add Data Source
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}

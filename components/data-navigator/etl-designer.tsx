@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -28,6 +28,7 @@ import {
   Plus,
   Trash2,
   Info,
+  RefreshCw,
 } from 'lucide-react';
 import {
   Dialog,
@@ -37,6 +38,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { toast } from 'sonner';
 
 const nodeTypes = {
   transform: TransformNode,
@@ -190,6 +199,9 @@ export function ETLDesigner() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [dataSources, setDataSources] = useState<any[]>([]);
+  const [loadingDataSources, setLoadingDataSources] = useState(false);
+  const [selectedDataSourceForInput, setSelectedDataSourceForInput] = useState<string>('');
 
   // Helper to get typed data from node
   const getNodeData = (node: Node): ETLNodeData => node.data as unknown as ETLNodeData;
@@ -202,6 +214,28 @@ export function ETLDesigner() {
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     setSelectedNode(node);
   }, []);
+
+  // Load available data sources
+  const loadDataSources = useCallback(async () => {
+    setLoadingDataSources(true);
+    try {
+      const response = await fetch('/api/v1/schema/datasources/summary');
+      if (!response.ok) {
+        throw new Error('Failed to load data sources');
+      }
+      const data = await response.json();
+      setDataSources(data.data_sources);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to load data sources');
+    } finally {
+      setLoadingDataSources(false);
+    }
+  }, []);
+
+  // Load data sources on mount
+  useEffect(() => {
+    loadDataSources();
+  }, [loadDataSources]);
 
   const handleRunPipeline = () => {
     setIsRunning(true);
@@ -240,6 +274,41 @@ export function ETLDesigner() {
     setNodes((nds) => [...nds, newNode]);
   };
 
+  const addDataSourceInput = () => {
+    if (!selectedDataSourceForInput) {
+      toast.error('Please select a data source first');
+      return;
+    }
+
+    const dataSource = dataSources.find((ds) => ds.id === selectedDataSourceForInput);
+    if (!dataSource) {
+      toast.error('Selected data source not found');
+      return;
+    }
+
+    const newNode: Node = {
+      id: `datasource-${dataSource.id}`,
+      type: 'transform',
+      position: { x: 100, y: 50 },
+      data: {
+        label: `Source: ${dataSource.name} (${dataSource.type})`,
+        type: 'datasource',
+        config: {
+          datasource_id: dataSource.id,
+          datasource_type: dataSource.type,
+          device_count: dataSource.device_count,
+          metric_count: dataSource.metric_count,
+        },
+        status: 'ready',
+        rowCount: dataSource.metric_count,
+      },
+    };
+
+    setNodes((nds) => [newNode, ...nds]);
+    toast.success(`Added ${dataSource.name} as pipeline input`);
+    setSelectedDataSourceForInput('');
+  };
+
   return (
     <div className="space-y-4 animate-slide-up">
       <div className="rounded-xl border p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/20 backdrop-blur-sm">
@@ -254,6 +323,42 @@ export function ETLDesigner() {
               verbinden Sie diese zu einem Datenfluss. Ähnlich wie Power Query oder Tableau Prep.
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* Data Source Input Selector */}
+      <div className="flex items-center gap-2 p-3 bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-lg">
+        <div className="flex-1 flex items-center gap-2">
+          <span className="text-sm font-medium">Add Data Source as Input:</span>
+          <Select value={selectedDataSourceForInput} onValueChange={setSelectedDataSourceForInput}>
+            <SelectTrigger className="w-[300px]">
+              <SelectValue placeholder={loadingDataSources ? 'Loading...' : 'Select a data source'} />
+            </SelectTrigger>
+            <SelectContent>
+              {dataSources.map((ds) => (
+                <SelectItem key={ds.id} value={ds.id}>
+                  {ds.name} ({ds.type}) - {ds.device_count} devices, {ds.metric_count} metrics
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            onClick={addDataSourceInput}
+            disabled={!selectedDataSourceForInput || loadingDataSources}
+            size="sm"
+            className="gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Add Input
+          </Button>
+          <Button
+            onClick={loadDataSources}
+            disabled={loadingDataSources}
+            variant="ghost"
+            size="sm"
+          >
+            <RefreshCw className={`h-4 w-4 ${loadingDataSources ? 'animate-spin' : ''}`} />
+          </Button>
         </div>
       </div>
 
