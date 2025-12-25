@@ -1,65 +1,40 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RefreshCw, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { RefreshCw, AlertTriangle, CheckCircle2, XCircle, Check, TrendingUp } from 'lucide-react';
+import { useAnomalies, useUpdateAnomaly, useAnomalyStatistics } from '@/lib/hooks/use-anomalies';
+import { TableSkeleton } from '@/components/ui/skeleton-loader';
+import { NoAnomaliesState, ErrorState } from '@/components/ui/empty-state';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
+import { format } from 'date-fns';
 
-interface Anomaly {
-  id: string;
-  metricName: string;
-  deviceName: string;
-  timestamp: string;
-  value: number;
-  expectedValue?: number;
-  zScore?: number;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  type: string;
-  description?: string;
-  acknowledged: boolean;
-}
+function AnomalyCard({ anomaly }: { anomaly: any }) {
+  const { mutate: updateAnomaly, isPending } = useUpdateAnomaly();
 
-export default function AnomaliesPage() {
-  const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [severityFilter, setSeverityFilter] = useState<string>('all');
-  const [acknowledgedFilter, setAcknowledgedFilter] = useState<string>('all');
-
-  const fetchAnomalies = async () => {
-    setIsLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (severityFilter !== 'all') params.set('severity', severityFilter);
-      if (acknowledgedFilter !== 'all') {
-        params.set('acknowledged', acknowledgedFilter === 'true' ? 'true' : 'false');
-      }
-      params.set('limit', '50');
-
-      const response = await fetch(`/api/anomalies?${params}`);
-      const data = await response.json();
-      setAnomalies(data.anomalies || []);
-    } catch (error) {
-      console.error('Error fetching anomalies:', error);
-    } finally {
-      setIsLoading(false);
-    }
+  const handleAcknowledge = () => {
+    updateAnomaly({
+      id: anomaly.id,
+      data: {
+        status: 'acknowledged',
+        acknowledged_by: 'current_user', // TODO: Get from auth context
+      },
+    });
   };
-
-  useEffect(() => {
-    fetchAnomalies();
-  }, [severityFilter, acknowledgedFilter]);
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case 'critical':
-        return 'text-red-600 bg-red-50 dark:bg-red-950';
+        return 'from-red-500/20 to-orange-500/20 border-red-500/30';
       case 'high':
-        return 'text-orange-600 bg-orange-50 dark:bg-orange-950';
+        return 'from-orange-500/20 to-yellow-500/20 border-orange-500/30';
       case 'medium':
-        return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-950';
+        return 'from-yellow-500/20 to-amber-500/20 border-yellow-500/30';
       default:
-        return 'text-blue-600 bg-blue-50 dark:bg-blue-950';
+        return 'from-blue-500/20 to-cyan-500/20 border-blue-500/30';
     }
   };
 
@@ -68,25 +43,212 @@ export default function AnomaliesPage() {
       case 'critical':
       case 'high':
         return <XCircle className="h-5 w-5" />;
-      case 'medium':
-        return <AlertTriangle className="h-5 w-5" />;
       default:
         return <AlertTriangle className="h-5 w-5" />;
     }
   };
 
+  const getSeverityTextColor = (severity: string) => {
+    switch (severity) {
+      case 'critical':
+        return 'text-red-500';
+      case 'high':
+        return 'text-orange-500';
+      case 'medium':
+        return 'text-yellow-500';
+      default:
+        return 'text-blue-500';
+    }
+  };
+
+  const isAcknowledged = anomaly.status === 'acknowledged' || anomaly.status === 'resolved';
+
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Anomaly Detection</h1>
-          <p className="text-muted-foreground">
-            Monitor and manage detected anomalies in your IoT data
+    <div
+      className={`p-4 rounded-xl border bg-gradient-to-br ${getSeverityColor(anomaly.severity)} ${
+        isAcknowledged ? 'opacity-60' : ''
+      } hover-scale`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex gap-3 flex-1">
+          <div className={`p-2 rounded-lg ${getSeverityTextColor(anomaly.severity)}`}>
+            {getSeverityIcon(anomaly.severity)}
+          </div>
+
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <h4 className="font-semibold">Anomaly Detected</h4>
+              <Badge variant="outline" className="uppercase text-xs">
+                {anomaly.severity}
+              </Badge>
+              {isAcknowledged && (
+                <Badge variant="default" className="bg-green-500/20 text-green-500 border-green-500/30">
+                  <Check className="h-3 w-3 mr-1" />
+                  {anomaly.status}
+                </Badge>
+              )}
+            </div>
+
+            <p className="text-sm text-muted-foreground mb-3">
+              {format(new Date(anomaly.timestamp), 'PPp')}
+            </p>
+
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <span className="text-muted-foreground">Value:</span>{' '}
+                <span className="font-medium font-mono">{anomaly.value.toFixed(2)}</span>
+              </div>
+              {anomaly.z_score && (
+                <div>
+                  <span className="text-muted-foreground">Z-Score:</span>{' '}
+                  <span className="font-medium font-mono">{anomaly.z_score.toFixed(2)}</span>
+                </div>
+              )}
+            </div>
+
+            {anomaly.description && (
+              <p className="text-sm mt-3 text-muted-foreground italic">"{anomaly.description}"</p>
+            )}
+          </div>
+        </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleAcknowledge}
+          disabled={isAcknowledged || isPending}
+          className="shrink-0"
+        >
+          {isPending ? 'Acknowledging...' : isAcknowledged ? 'Acknowledged' : 'Acknowledge'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function AnomaliesContent() {
+  const [severityFilter, setSeverityFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  const { data, isLoading, error, refetch } = useAnomalies({
+    severity: severityFilter !== 'all' ? [severityFilter as any] : undefined,
+    status: statusFilter !== 'all' ? [statusFilter as any] : undefined,
+    limit: 50,
+  });
+
+  if (isLoading) {
+    return <TableSkeleton rows={5} />;
+  }
+
+  if (error) {
+    return <ErrorState title="Failed to load anomalies" description={error.message} onRetry={refetch} />;
+  }
+
+  const anomalies = data?.data || [];
+
+  if (anomalies.length === 0) {
+    return <NoAnomaliesState />;
+  }
+
+  return (
+    <Card className="glass-card">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Detected Anomalies</CardTitle>
+            <CardDescription className="mt-1">
+              {data?.total} anomal{data?.total !== 1 ? 'ies' : 'y'} found
+            </CardDescription>
+          </div>
+          <Button variant="ghost" size="icon" onClick={() => refetch()}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {anomalies.map((anomaly) => (
+          <AnomalyCard key={anomaly.id} anomaly={anomaly} />
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function AnomaliesPage() {
+  const [severityFilter, setSeverityFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const { data: stats, isLoading: statsLoading } = useAnomalyStatistics();
+
+  return (
+    <ErrorBoundary>
+      <div className="container mx-auto p-6 space-y-6 animate-fade-in">
+        {/* Gradient orbs */}
+        <div className="absolute -top-4 -left-4 w-72 h-72 bg-red-500/20 rounded-full blur-3xl" />
+        <div className="absolute -top-4 -right-4 w-72 h-72 bg-orange-500/20 rounded-full blur-3xl" />
+
+        {/* Header */}
+        <div className="relative">
+          <h1 className="section-header">Anomaly Detection</h1>
+          <p className="text-muted-foreground mt-2">
+            Monitor and manage detected anomalies in your IoT data streams
           </p>
         </div>
 
+        {/* Statistics Cards */}
+        {stats && !statsLoading && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="metric-card hover-scale">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-red-500/20">
+                  <AlertTriangle className="h-5 w-5 text-red-500" />
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Total Anomalies</div>
+                  <div className="text-2xl font-bold gradient-text">{stats.total}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="metric-card hover-scale">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-orange-500/20">
+                  <XCircle className="h-5 w-5 text-orange-500" />
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Critical</div>
+                  <div className="text-2xl font-bold gradient-text">{stats.by_severity?.critical || 0}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="metric-card hover-scale">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-green-500/20">
+                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Resolved</div>
+                  <div className="text-2xl font-bold gradient-text">{stats.by_status?.resolved || 0}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="metric-card hover-scale">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-blue-500/20">
+                  <TrendingUp className="h-5 w-5 text-blue-500" />
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">New (24h)</div>
+                  <div className="text-2xl font-bold gradient-text">{stats.by_status?.new || 0}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Filters */}
-        <Card className="mb-6">
+        <Card className="glass-card">
           <CardHeader>
             <CardTitle>Filters</CardTitle>
           </CardHeader>
@@ -110,121 +272,26 @@ export default function AnomaliesPage() {
 
               <div className="flex-1 min-w-[200px]">
                 <label className="text-sm font-medium mb-2 block">Status</label>
-                <Select value={acknowledgedFilter} onValueChange={setAcknowledgedFilter}>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="false">Unacknowledged</SelectItem>
-                    <SelectItem value="true">Acknowledged</SelectItem>
+                    <SelectItem value="new">New</SelectItem>
+                    <SelectItem value="acknowledged">Acknowledged</SelectItem>
+                    <SelectItem value="resolved">Resolved</SelectItem>
+                    <SelectItem value="false_positive">False Positive</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-
-              <div className="flex items-end">
-                <Button onClick={fetchAnomalies} disabled={isLoading}>
-                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                  Refresh
-                </Button>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Anomalies Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Detected Anomalies</CardTitle>
-            <CardDescription>
-              {anomalies.length} anomalie{anomalies.length !== 1 ? 's' : ''} found
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="text-center py-8 text-muted-foreground">Loading anomalies...</div>
-            ) : anomalies.length === 0 ? (
-              <div className="text-center py-8">
-                <CheckCircle2 className="h-12 w-12 mx-auto mb-4 text-green-600" />
-                <p className="text-lg font-medium">No anomalies detected</p>
-                <p className="text-muted-foreground">Your data looks healthy!</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {anomalies.map((anomaly) => (
-                  <div
-                    key={anomaly.id}
-                    className={`p-4 rounded-lg border ${
-                      anomaly.acknowledged ? 'opacity-60' : ''
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex gap-3 flex-1">
-                        <div className={`p-2 rounded-md ${getSeverityColor(anomaly.severity)}`}>
-                          {getSeverityIcon(anomaly.severity)}
-                        </div>
-
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-semibold">{anomaly.metricName}</h4>
-                            <span
-                              className={`px-2 py-0.5 rounded text-xs font-medium ${getSeverityColor(
-                                anomaly.severity
-                              )}`}
-                            >
-                              {anomaly.severity}
-                            </span>
-                            {anomaly.acknowledged && (
-                              <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-50 text-green-700 dark:bg-green-950">
-                                Acknowledged
-                              </span>
-                            )}
-                          </div>
-
-                          <p className="text-sm text-muted-foreground mb-2">
-                            {anomaly.deviceName} • {new Date(anomaly.timestamp).toLocaleString()}
-                          </p>
-
-                          <div className="flex gap-4 text-sm">
-                            <div>
-                              <span className="text-muted-foreground">Value:</span>{' '}
-                              <span className="font-medium">{anomaly.value.toFixed(2)}</span>
-                            </div>
-                            {anomaly.expectedValue && (
-                              <div>
-                                <span className="text-muted-foreground">Expected:</span>{' '}
-                                <span className="font-medium">
-                                  {anomaly.expectedValue.toFixed(2)}
-                                </span>
-                              </div>
-                            )}
-                            {anomaly.zScore && (
-                              <div>
-                                <span className="text-muted-foreground">Z-Score:</span>{' '}
-                                <span className="font-medium">{anomaly.zScore.toFixed(2)}</span>
-                              </div>
-                            )}
-                          </div>
-
-                          {anomaly.description && (
-                            <p className="text-sm mt-2 text-muted-foreground">
-                              {anomaly.description}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      <Button variant="outline" size="sm" disabled={anomaly.acknowledged}>
-                        {anomaly.acknowledged ? 'Acknowledged' : 'Acknowledge'}
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Anomalies List */}
+        <AnomaliesContent />
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }
