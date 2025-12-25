@@ -22,12 +22,11 @@ router = APIRouter()
 
 # Schemas
 class LineMetricsConfigSchema(BaseModel):
-    """LineMetrics configuration"""
+    """LineMetrics configuration for OAuth2"""
 
-    api_url: str = Field(default="https://api.linemetrics.com/v2")
-    api_key: Optional[str] = None
-    username: Optional[str] = None
-    password: Optional[str] = None
+    api_url: str = Field(default="https://rest-api.linemetrics.com")
+    client_id: str = Field(description="OAuth2 Client ID")
+    client_secret: str = Field(description="OAuth2 Client Secret")
 
 
 class LineMetricsTestResponse(BaseModel):
@@ -111,18 +110,19 @@ async def test_linemetrics_connection(
     try:
         lm_config = LineMetricsConfig(
             api_url=config.api_url,
-            api_key=config.api_key,
-            username=config.username,
-            password=config.password,
+            client_id=config.client_id,
+            client_secret=config.client_secret,
         )
 
         async with LineMetricsService(lm_config) as service:
             devices = await service.get_devices()
+            # devices is a dict, get the count
+            device_count = len(devices) if isinstance(devices, dict) else 0
 
             return LineMetricsTestResponse(
                 success=True,
                 message="Connection successful",
-                device_count=len(devices),
+                device_count=device_count,
             )
 
     except Exception as e:
@@ -146,24 +146,23 @@ async def get_linemetrics_devices(
     try:
         lm_config = LineMetricsConfig(
             api_url=config.api_url,
-            api_key=config.api_key,
-            username=config.username,
-            password=config.password,
+            client_id=config.client_id,
+            client_secret=config.client_secret,
         )
 
         async with LineMetricsService(lm_config) as service:
-            devices = await service.get_devices()
+            devices_dict = await service.get_devices()
 
+            # Convert dict to list and return
             return [
                 LineMetricsDeviceResponse(
-                    id=device.get("id"),
-                    name=device.get("name", ""),
-                    location=device.get("location"),
-                    description=device.get("description"),
-                    stream_count=len(device.get("streams", [])),
+                    id=device_id,
+                    name=device_data.get("title") or device_data.get("name", ""),
+                    location=device_data.get("location"),
+                    description=device_data.get("description"),
+                    stream_count=0,  # Will be fetched separately per device
                 )
-                for device in devices
-                if device.get("id")
+                for device_id, device_data in devices_dict.items()
             ]
 
     except Exception as e:
@@ -187,9 +186,8 @@ async def get_linemetrics_device_streams(
     try:
         lm_config = LineMetricsConfig(
             api_url=config.api_url,
-            api_key=config.api_key,
-            username=config.username,
-            password=config.password,
+            client_id=config.client_id,
+            client_secret=config.client_secret,
         )
 
         async with LineMetricsService(lm_config) as service:
@@ -201,7 +199,7 @@ async def get_linemetrics_device_streams(
                     name=stream.get("name", ""),
                     unit=stream.get("unit"),
                     data_type=stream.get("dataType"),
-                    description=stream.get("description"),
+                    description=stream.get("alias") or stream.get("description"),
                 )
                 for stream in streams
                 if stream.get("id")
@@ -228,9 +226,8 @@ async def sync_linemetrics(
     """
     lm_config = LineMetricsConfig(
         api_url=request.config.api_url,
-        api_key=request.config.api_key,
-        username=request.config.username,
-        password=request.config.password,
+        client_id=request.config.client_id,
+        client_secret=request.config.client_secret,
     )
 
     try:
@@ -273,9 +270,8 @@ async def import_linemetrics_data(
     """
     lm_config = LineMetricsConfig(
         api_url=request.config.api_url,
-        api_key=request.config.api_key,
-        username=request.config.username,
-        password=request.config.password,
+        client_id=request.config.client_id,
+        client_secret=request.config.client_secret,
     )
 
     try:

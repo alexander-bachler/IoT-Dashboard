@@ -47,23 +47,20 @@ The LineMetrics integration allows you to:
 
 ### Required Information
 
-Before starting, you need one of the following:
+Before starting, you need:
 
-**Option 1: API Key** (Recommended)
-- LineMetrics API URL
-- API Key (from LineMetrics portal)
+**OAuth2 Client Credentials** (Required)
+- LineMetrics REST API URL: `https://rest-api.linemetrics.com`
+- Client ID
+- Client Secret
 
-**Option 2: Username & Password**
-- LineMetrics API URL
-- Username
-- Password
-
-### Getting Your API Credentials
+### Getting Your OAuth2 Credentials
 
 1. Log in to [LineMetrics Portal](https://service.linemetrics.com/)
-2. Navigate to **Settings** → **API Keys**
-3. Generate a new API key
-4. Copy the key (you won't be able to see it again!)
+2. Navigate to **Settings** → **API Access** or **OAuth2 Applications**
+3. Create a new OAuth2 application or use existing credentials
+4. Copy both the **Client ID** and **Client Secret**
+5. Store the Client Secret securely (you won't be able to see it again!)
 
 ---
 
@@ -74,13 +71,10 @@ Before starting, you need one of the following:
 Add LineMetrics configuration to your `.env.local`:
 
 ```env
-# LineMetrics API Configuration
-NEXT_PUBLIC_LINEMETRICS_API_URL=https://api.linemetrics.com/v2
-NEXT_PUBLIC_LINEMETRICS_API_KEY=your-api-key-here
-
-# Optional: For development/testing
-LINEMETRICS_USERNAME=your-username
-LINEMETRICS_PASSWORD=your-password
+# LineMetrics API Configuration (OAuth2)
+NEXT_PUBLIC_LINEMETRICS_API_URL=https://rest-api.linemetrics.com
+NEXT_PUBLIC_LINEMETRICS_CLIENT_ID=your-client-id-here
+NEXT_PUBLIC_LINEMETRICS_CLIENT_SECRET=your-client-secret-here
 ```
 
 ### 2. Backend Configuration
@@ -89,9 +83,12 @@ The backend automatically uses environment variables from your `.env` file:
 
 ```env
 # In backend/.env
-LINEMETRICS_API_URL=https://api.linemetrics.com/v2
-LINEMETRICS_API_KEY=your-api-key-here
+LINEMETRICS_API_URL=https://rest-api.linemetrics.com
+LINEMETRICS_CLIENT_ID=your-client-id-here
+LINEMETRICS_CLIENT_SECRET=your-client-secret-here
 ```
+
+**Security Note**: The Client Secret provides full access to your LineMetrics account. Never commit it to version control or share it publicly.
 
 ---
 
@@ -121,39 +118,42 @@ For custom implementations:
 ```tsx
 import {
   useLineMetricsDevices,
-  useLineMetricsMeasurements,
+  useLineMetricsInputData,
   useLineMetricsSync,
 } from '@/lib/hooks/use-linemetrics';
 
 function MyComponent() {
-  // Fetch devices
-  const { data: devices, isLoading } = useLineMetricsDevices({
-    apiUrl: 'https://api.linemetrics.com/v2',
-    apiKey: 'your-api-key',
-  });
+  const config = {
+    apiUrl: 'https://rest-api.linemetrics.com',
+    clientId: 'your-client-id',
+    clientSecret: 'your-client-secret',
+  };
+
+  // Fetch devices (returns dict of device ID to device data)
+  const { data: devicesDict, isLoading } = useLineMetricsDevices(undefined, undefined, config);
 
   // Sync devices to backend
   const syncMutation = useLineMetricsSync();
   const handleSync = () => {
-    syncMutation.mutate({
-      apiUrl: 'https://api.linemetrics.com/v2',
-      apiKey: 'your-api-key',
-    });
+    syncMutation.mutate(config);
   };
 
-  // Query measurements
-  const { data: measurements } = useLineMetricsMeasurements({
-    streamIds: ['stream-1', 'stream-2'],
-    from: '2024-01-01T00:00:00Z',
-    to: '2024-01-02T00:00:00Z',
-    aggregation: 'avg',
-    interval: '1h',
-  });
+  // Query measurements for a device input
+  const { data: measurements } = useLineMetricsInputData(
+    'input-123',
+    {
+      time_from: new Date('2024-01-01').getTime(),
+      time_to: new Date('2024-01-02').getTime(),
+      granularity: 'PT1H',
+      function: 'avg',
+    },
+    config
+  );
 
   return (
     <div>
-      {devices?.map(device => (
-        <div key={device.id}>{device.name}</div>
+      {devicesDict && Object.entries(devicesDict).map(([id, device]) => (
+        <div key={id}>{device.title || device.name}</div>
       ))}
     </div>
   );
@@ -168,37 +168,36 @@ For more control:
 import { createLineMetricsClient } from '@/lib/integrations/linemetrics-client';
 
 const client = createLineMetricsClient({
-  apiUrl: 'https://api.linemetrics.com/v2',
-  apiKey: 'your-api-key',
+  apiUrl: 'https://rest-api.linemetrics.com',
+  clientId: 'your-client-id',
+  clientSecret: 'your-client-secret',
 });
 
-// Authenticate
-await client.authenticate();
+// Get account info
+const account = await client.getAccount();
 
-// Get devices
-const devices = await client.getDevices();
+// Get all devices (returns dict of device ID to device data)
+const devicesDict = await client.getAllDevices();
 
-// Get streams for a device
-const streams = await client.getDeviceStreams('device-123');
+// Get device details with inputs
+const deviceDetail = await client.getDeviceById('device-123');
 
-// Query measurements
-const timeSeries = await client.queryMeasurements({
-  streamIds: ['stream-1', 'stream-2'],
-  from: '2024-01-01T00:00:00Z',
-  to: '2024-01-02T00:00:00Z',
-  aggregation: 'avg',
-  interval: '1h',
-});
+// Extract inputs from device detail
+const inputs = LineMetricsClient.extractInputs(deviceDetail);
 
-// Export data
-const blob = await client.exportData(
+// Query measurements for a device input
+const dataPoints = await client.getInputData(
+  'input-123',
   {
-    streamIds: ['stream-1'],
-    from: '2024-01-01T00:00:00Z',
-    to: '2024-01-02T00:00:00Z',
-  },
-  'csv'
+    time_from: new Date('2024-01-01').getTime(),
+    time_to: new Date('2024-01-02').getTime(),
+    granularity: 'PT1H',
+    function: 'avg',
+  }
 );
+
+// Get last value for an input
+const lastValue = await client.getInputLastValue('input-123');
 ```
 
 ---
@@ -217,8 +216,9 @@ Content-Type: application/json
 Authorization: Bearer <your-jwt-token>
 
 {
-  "api_url": "https://api.linemetrics.com/v2",
-  "api_key": "your-api-key"
+  "api_url": "https://rest-api.linemetrics.com",
+  "client_id": "your-client-id",
+  "client_secret": "your-client-secret"
 }
 ```
 
@@ -239,8 +239,9 @@ Content-Type: application/json
 Authorization: Bearer <your-jwt-token>
 
 {
-  "api_url": "https://api.linemetrics.com/v2",
-  "api_key": "your-api-key"
+  "api_url": "https://rest-api.linemetrics.com",
+  "client_id": "your-client-id",
+  "client_secret": "your-client-secret"
 }
 ```
 
@@ -265,8 +266,9 @@ Content-Type: application/json
 Authorization: Bearer <your-jwt-token>
 
 {
-  "api_url": "https://api.linemetrics.com/v2",
-  "api_key": "your-api-key"
+  "api_url": "https://rest-api.linemetrics.com",
+  "client_id": "your-client-id",
+  "client_secret": "your-client-secret"
 }
 ```
 
@@ -294,8 +296,9 @@ Authorization: Bearer <your-jwt-token>
 
 {
   "config": {
-    "api_url": "https://api.linemetrics.com/v2",
-    "api_key": "your-api-key"
+    "api_url": "https://rest-api.linemetrics.com",
+    "client_id": "your-client-id",
+    "client_secret": "your-client-secret"
   }
 }
 ```
@@ -323,14 +326,15 @@ Authorization: Bearer <your-jwt-token>
 
 {
   "config": {
-    "api_url": "https://api.linemetrics.com/v2",
-    "api_key": "your-api-key"
+    "api_url": "https://rest-api.linemetrics.com",
+    "client_id": "your-client-id",
+    "client_secret": "your-client-secret"
   },
-  "stream_ids": ["stream-1", "stream-2"],
+  "stream_ids": ["input-1", "input-2"],
   "from_time": "2024-01-01T00:00:00Z",
   "to_time": "2024-01-02T00:00:00Z",
   "aggregation": "avg",
-  "interval": "1h"
+  "interval": "PT1H"
 }
 ```
 
@@ -453,15 +457,18 @@ LineMetrics Measurement → Platform Measurement
 ### Example Query
 
 ```typescript
-const measurements = await client.queryMeasurements({
-  streamIds: ['energy-meter-1'],
-  from: '2024-01-01T00:00:00Z',
-  to: '2024-01-31T23:59:59Z',
-  aggregation: 'sum',    // Total energy
-  interval: '1d',        // Per day
-});
+const measurements = await client.getInputData(
+  'energy-meter-input-1',
+  {
+    time_from: new Date('2024-01-01').getTime(),
+    time_to: new Date('2024-01-31').getTime(),
+    granularity: 'PT24H',  // Per day
+    function: 'sum',        // Total energy
+  }
+);
 
 // Result: Daily energy consumption for January
+// Data points: [{ ts: 1704067200000, val: 123.45 }, ...]
 ```
 
 ---
@@ -598,6 +605,12 @@ LineMetrics API may have rate limits:
 ### Complete Integration Flow
 
 ```typescript
+const config = {
+  api_url: 'https://rest-api.linemetrics.com',
+  client_id: 'your-client-id',
+  client_secret: 'your-client-secret',
+};
+
 // 1. Test connection
 const connectionTest = await fetch('/api/v1/linemetrics/test', {
   method: 'POST',
@@ -605,10 +618,7 @@ const connectionTest = await fetch('/api/v1/linemetrics/test', {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${token}`,
   },
-  body: JSON.stringify({
-    api_url: 'https://api.linemetrics.com/v2',
-    api_key: 'your-api-key',
-  }),
+  body: JSON.stringify(config),
 });
 
 // 2. Sync devices
@@ -618,15 +628,10 @@ const syncResult = await fetch('/api/v1/linemetrics/sync', {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${token}`,
   },
-  body: JSON.stringify({
-    config: {
-      api_url: 'https://api.linemetrics.com/v2',
-      api_key: 'your-api-key',
-    },
-  }),
+  body: JSON.stringify({ config }),
 });
 
-// 3. Import last 7 days of data
+// 3. Import last 7 days of data (for device inputs)
 const importResult = await fetch('/api/v1/linemetrics/import', {
   method: 'POST',
   headers: {
@@ -634,15 +639,12 @@ const importResult = await fetch('/api/v1/linemetrics/import', {
     'Authorization': `Bearer ${token}`,
   },
   body: JSON.stringify({
-    config: {
-      api_url: 'https://api.linemetrics.com/v2',
-      api_key: 'your-api-key',
-    },
-    stream_ids: ['stream-1', 'stream-2'],
+    config,
+    stream_ids: ['input-1', 'input-2'],
     from_time: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
     to_time: new Date().toISOString(),
     aggregation: 'avg',
-    interval: '1h',
+    interval: 'PT1H',  // ISO 8601 duration format
   }),
 });
 ```

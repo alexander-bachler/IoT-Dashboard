@@ -1,7 +1,8 @@
 """
 LineMetrics Integration Service
 
-Handles synchronization and data import from LineMetrics API
+Handles synchronization and data import from LineMetrics API v2
+Authentication: OAuth2 Client Credentials
 """
 
 import httpx
@@ -16,24 +17,24 @@ from app.models.user import User
 
 
 class LineMetricsConfig:
-    """Configuration for LineMetrics API"""
+    """Configuration for LineMetrics API v2 with OAuth2"""
 
     def __init__(
         self,
-        api_url: str = "https://api.linemetrics.com/v2",
-        api_key: Optional[str] = None,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
+        api_url: str = "https://rest-api.linemetrics.com",
+        client_id: Optional[str] = None,
+        client_secret: Optional[str] = None,
+        **kwargs,  # Accept but ignore old parameters
     ):
         self.api_url = api_url.rstrip("/")
-        self.api_key = api_key
-        self.username = username
-        self.password = password
+        self.client_id = client_id
+        self.client_secret = client_secret
         self.access_token: Optional[str] = None
+        self.token_expiry: Optional[datetime] = None
 
 
 class LineMetricsService:
-    """Service for interacting with LineMetrics API"""
+    """Service for interacting with LineMetrics API v2"""
 
     def __init__(self, config: LineMetricsConfig):
         self.config = config
@@ -51,60 +52,210 @@ class LineMetricsService:
         await self.client.aclose()
 
     async def authenticate(self) -> None:
-        """Authenticate with LineMetrics API"""
-        if self.config.api_key:
-            # Use API key authentication
-            self.client.headers["X-API-Key"] = self.config.api_key
-        elif self.config.username and self.config.password:
-            # Use username/password authentication
-            response = await self.client.post(
-                "/auth/login",
-                json={
-                    "username": self.config.username,
-                    "password": self.config.password,
-                },
-            )
-            response.raise_for_status()
-            data = response.json()
-            self.config.access_token = data.get("access_token") or data.get("token")
-            self.client.headers["Authorization"] = f"Bearer {self.config.access_token}"
+        """Authenticate with LineMetrics API using OAuth2 client credentials"""
+        if not self.config.client_id or not self.config.client_secret:
+            raise ValueError("Client ID and Client Secret are required")
 
-    async def get_devices(self) -> List[Dict[str, Any]]:
-        """Fetch all devices from LineMetrics"""
-        response = await self.client.get("/devices")
+        # Check if token is still valid
+        if self.config.access_token and self.config.token_expiry:
+            if datetime.utcnow() < self.config.token_expiry:
+                self.client.headers["Authorization"] = f"Bearer {self.config.access_token}"
+                return
+
+        # Request new access token
+        response = await self.client.post(
+            "/oauth/access_token",
+            json={
+                "client_id": self.config.client_id,
+                "client_secret": self.config.client_secret,
+                "grant_type": "client_credentials",
+            },
+        )
         response.raise_for_status()
         data = response.json()
-        return data.get("devices", data)
+
+        self.config.access_token = data.get("access_token")
+        # Token typically expires in 1 hour, set expiry to 55 minutes
+        self.config.token_expiry = datetime.utcnow() + timedelta(minutes=55)
+
+        self.client.headers["Authorization"] = f"Bearer {self.config.access_token}"
+
+    async def get_account(self) -> Dict[str, Any]:
+        """Get account information"""
+        response = await self.client.get("/v2/account")
+        response.raise_for_status()
+        return response.json()
+
+    async def get_devices(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Fetch all devices from LineMetrics
+        Returns a dictionary mapping device IDs to device objects
+        """
+        response = await self.client.get("/v2/devices/all")
+        response.raise_for_status()
+        return response.json()
+
+    async def get_device_by_id(self, device_id: str) -> Dict[str, Any]:
+        """Fetch device detail by ID"""
+        response = await self.client.get("/v2/devices", params={"id": device_id})
+        response.raise_for_status()
+        return response.json()
 
     async def get_device_streams(self, device_id: str) -> List[Dict[str, Any]]:
-        """Fetch streams for a specific device"""
-        response = await self.client.get(f"/devices/{device_id}/streams")
+        """
+        Fetch inputs (streams) for a specific device
+        Returns list of inputs with their metadata
+        """
+        # Get device detail
+        device_detail = await self.get_device_by_id(device_id)
+
+        # Extract device data
+        device_data = device_detail.get("data", [])
+        if not device_data:
+            return []
+
+        device = device_data[0]
+        inputs_data = device.get("relationships", {}).get("inputs", {}).get("data", [])
+        included = device_detail.get("included", [])
+
+        # Extract input details
+        streams = []
+        for input_data in inputs_data:
+            input_id = input_data.get("id")
+            data_source_id = input_data.get("dataSourceId")
+            input_type = input_data.get("type")
+
+            # Find input metadata in included
+            details = next(
+                (inc for inc in included if inc.get("id") == input_id),
+                None,
+            )
+
+            if details:
+                streams.append(
+                    {
+                        "id": input_id,
+                        "dataSourceId": data_source_id,
+                        "type": input_type,
+                        "name": details.get("attributes", {}).get("title", ""),
+                        "alias": details.get("attributes", {}).get("alias", ""),
+                        "unit": details.get("attributes", {}).get("unit"),
+                        "dataType": "number",  # LineMetrics inputs are typically numeric
+                    }
+                )
+
+        return streams
+
+    async def get_input_data(
+        self,
+        input_id: str,
+        from_time: Optional[datetime] = None,
+        to_time: Optional[datetime] = None,
+        granularity: Optional[str] = None,
+        function: Optional[str] = None,
+        time_zone: str = "Europe/Vienna",
+    ) -> List[Dict[str, Any]]:
+        """
+        Query measurements for a device input
+
+        Args:
+            input_id: Device input ID
+            from_time: Start time (datetime)
+            to_time: End time (datetime)
+            granularity: PT1M, PT5M, PT15M, PT1H, PT6H, PT24H, PT168H
+            function: last_value, avg, min, max, sum
+            time_zone: Time zone for aggregation
+
+        Returns:
+            List of data points with ts (timestamp in ms) and val (value)
+        """
+        params = {}
+        if from_time:
+            params["time_from"] = int(from_time.timestamp() * 1000)
+        if to_time:
+            params["time_to"] = int(to_time.timestamp() * 1000)
+        if granularity:
+            params["granularity"] = granularity
+        if function:
+            params["function"] = function
+        if time_zone:
+            params["time_zone"] = time_zone
+
+        response = await self.client.get(
+            f"/v2/device-inputs/{input_id}/data",
+            params=params,
+        )
         response.raise_for_status()
-        data = response.json()
-        return data.get("streams", data)
+        return response.json()
 
     async def query_measurements(
         self,
         stream_ids: List[str],
         from_time: datetime,
         to_time: datetime,
-        aggregation: str = "none",
-        interval: Optional[str] = None,
+        aggregation: str = "avg",
+        interval: Optional[str] = "PT15M",
     ) -> List[Dict[str, Any]]:
-        """Query measurements from LineMetrics"""
-        response = await self.client.post(
-            "/measurements/query",
-            json={
-                "stream_ids": stream_ids,
-                "from": from_time.isoformat(),
-                "to": to_time.isoformat(),
-                "aggregation": aggregation,
-                "interval": interval,
-            },
-        )
-        response.raise_for_status()
-        data = response.json()
-        return data.get("data", data)
+        """
+        Query measurements from multiple input streams
+
+        Args:
+            stream_ids: List of device input IDs
+            from_time: Start time
+            to_time: End time
+            aggregation: avg, min, max, sum, last_value
+            interval: PT1M, PT5M, PT15M, PT1H, PT6H, PT24H, PT168H
+
+        Returns:
+            List of time series data per stream
+        """
+        results = []
+
+        # Map aggregation names
+        function_map = {
+            "none": "last_value",
+            "avg": "avg",
+            "average": "avg",
+            "min": "min",
+            "minimum": "min",
+            "max": "max",
+            "maximum": "max",
+            "sum": "sum",
+            "total": "sum",
+            "last": "last_value",
+            "last_value": "last_value",
+        }
+        function = function_map.get(aggregation.lower(), "avg")
+
+        for stream_id in stream_ids:
+            try:
+                data = await self.get_input_data(
+                    input_id=stream_id,
+                    from_time=from_time,
+                    to_time=to_time,
+                    granularity=interval,
+                    function=function,
+                )
+
+                results.append(
+                    {
+                        "streamId": stream_id,
+                        "stream_id": stream_id,
+                        "data": data,
+                    }
+                )
+            except Exception as e:
+                # Continue with other streams if one fails
+                results.append(
+                    {
+                        "streamId": stream_id,
+                        "stream_id": stream_id,
+                        "data": [],
+                        "error": str(e),
+                    }
+                )
+
+        return results
 
 
 async def sync_linemetrics_devices(
@@ -153,10 +304,16 @@ async def sync_linemetrics_devices(
 
         # Fetch devices from LineMetrics
         try:
-            lm_devices = await lm_service.get_devices()
+            lm_devices_dict = await lm_service.get_devices()
         except Exception as e:
             stats["errors"].append(f"Failed to fetch devices: {str(e)}")
             return stats
+
+        # Convert dict to list for processing
+        lm_devices = []
+        for device_id, device_data in lm_devices_dict.items():
+            device_data["id"] = device_id  # Ensure ID is in the device object
+            lm_devices.append(device_data)
 
         # Process each device
         for lm_device in lm_devices:
@@ -175,9 +332,8 @@ async def sync_linemetrics_devices(
 
             if device:
                 # Update existing device
-                device.name = lm_device.get("name", device.name)
+                device.name = lm_device.get("title") or lm_device.get("name", device.name)
                 device.description = lm_device.get("description")
-                device.location = lm_device.get("location")
                 device.status = "active"
                 stats["devices_updated"] += 1
             else:
@@ -185,9 +341,8 @@ async def sync_linemetrics_devices(
                 device = Device(
                     source_id=data_source.id,
                     external_id=device_id,
-                    name=lm_device.get("name", f"Device {device_id}"),
+                    name=lm_device.get("title") or lm_device.get("name", f"Device {device_id}"),
                     description=lm_device.get("description"),
-                    location=lm_device.get("location"),
                     status="active",
                 )
                 db.add(device)
@@ -195,7 +350,7 @@ async def sync_linemetrics_devices(
 
             await db.flush()
 
-            # Fetch and process streams (metrics)
+            # Fetch and process streams (device inputs)
             try:
                 streams = await lm_service.get_device_streams(device_id)
 
@@ -218,10 +373,10 @@ async def sync_linemetrics_devices(
                         metric = Metric(
                             device_id=device.id,
                             external_id=stream_id,
-                            name=stream.get("name", f"Metric {stream_id}"),
+                            name=stream.get("name", f"Input {stream_id}"),
                             unit=stream.get("unit"),
                             data_type=stream.get("dataType", "number"),
-                            description=stream.get("description"),
+                            description=stream.get("alias") or stream.get("description"),
                         )
                         db.add(metric)
                         stats["metrics_created"] += 1
@@ -230,7 +385,7 @@ async def sync_linemetrics_devices(
 
             except Exception as e:
                 stats["errors"].append(
-                    f"Failed to fetch streams for device {device_id}: {str(e)}"
+                    f"Failed to fetch inputs for device {device_id}: {str(e)}"
                 )
 
         # Update data source last sync time
@@ -247,8 +402,8 @@ async def import_linemetrics_measurements(
     stream_ids: List[str],
     from_time: datetime,
     to_time: datetime,
-    aggregation: str = "none",
-    interval: Optional[str] = None,
+    aggregation: str = "avg",
+    interval: Optional[str] = "PT15M",
 ) -> Dict[str, Any]:
     """
     Import measurements from LineMetrics
@@ -257,11 +412,11 @@ async def import_linemetrics_measurements(
         db: Database session
         user: Current user
         config: LineMetrics configuration
-        stream_ids: List of stream IDs to import
+        stream_ids: List of device input IDs to import
         from_time: Start time
         to_time: End time
-        aggregation: Aggregation method
-        interval: Aggregation interval
+        aggregation: Aggregation method (avg, min, max, sum, last_value)
+        interval: Granularity (PT1M, PT5M, PT15M, PT1H, PT6H, PT24H, PT168H)
 
     Returns:
         Import statistics
@@ -288,6 +443,11 @@ async def import_linemetrics_measurements(
                 if not stream_id:
                     continue
 
+                # Check for errors in this series
+                if "error" in series:
+                    stats["errors"].append(f"Stream {stream_id}: {series['error']}")
+                    continue
+
                 # Find corresponding metric in database
                 result = await db.execute(
                     select(Metric)
@@ -301,31 +461,28 @@ async def import_linemetrics_measurements(
                 metric = result.scalar_one_or_none()
 
                 if not metric:
-                    stats["errors"].append(f"Metric not found for stream {stream_id}")
+                    stats["errors"].append(f"Metric not found for input {stream_id}")
                     continue
 
                 # Import measurements
                 data_points = series.get("data", [])
                 for point in data_points:
-                    timestamp_str = point.get("timestamp") or point.get("time") or point.get("t")
-                    value = point.get("value") or point.get("v")
-                    quality = point.get("quality") or point.get("q")
+                    # LineMetrics returns { ts: unix_ms, val: value, min?, max? }
+                    timestamp_ms = point.get("ts")
+                    value = point.get("val")
 
-                    if timestamp_str is None or value is None:
+                    if timestamp_ms is None or value is None:
                         continue
 
-                    # Parse timestamp
-                    if isinstance(timestamp_str, str):
-                        timestamp = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
-                    else:
-                        timestamp = datetime.fromtimestamp(timestamp_str / 1000)
+                    # Convert Unix milliseconds to datetime
+                    timestamp = datetime.fromtimestamp(timestamp_ms / 1000.0)
 
                     # Create measurement
                     measurement = Measurement(
                         time=timestamp,
                         metric_id=metric.id,
                         value=float(value),
-                        quality=quality,
+                        quality=1.0,  # LineMetrics doesn't provide quality
                     )
                     db.add(measurement)
                     stats["measurements_imported"] += 1
