@@ -3,12 +3,13 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Database, LineChart, LayoutDashboard, Home, BarChart3, AlertTriangle } from 'lucide-react';
+import { Database, LineChart, LayoutDashboard, Home, BarChart3, AlertTriangle, Workflow } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 const navigation = [
   { name: 'Home', href: '/', icon: Home },
   { name: 'Data Sources', href: '/data-sources', icon: Database },
+  { name: 'Data Navigator', href: '/data-navigator', icon: Workflow },
   { name: 'Explorer', href: '/explorer', icon: LineChart },
   { name: 'Charts', href: '/charts', icon: BarChart3 },
   { name: 'Anomalies', href: '/anomalies', icon: AlertTriangle },
