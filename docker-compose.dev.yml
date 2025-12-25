@@ -1,0 +1,47 @@
+version: '3.8'
+
+# Development-focused docker-compose
+# Includes hot-reload and debugging tools
+
+services:
+  # TimescaleDB Database
+  timescaledb:
+    image: timescale/timescaledb:latest-pg14
+    container_name: iot-dashboard-db-dev
+    environment:
+      POSTGRES_DB: iot_dashboard
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescaledb_dev_data:/var/lib/postgresql/data
+    networks:
+      - iot-network-dev
+
+  # pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: iot-dashboard-pgadmin-dev
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    depends_on:
+      - timescaledb
+    networks:
+      - iot-network-dev
+    volumes:
+      - pgadmin_dev_data:/var/lib/pgadmin
+
+networks:
+  iot-network-dev:
+    driver: bridge
+
+volumes:
+  timescaledb_dev_data:
+    driver: local
+  pgadmin_dev_data:
+    driver: local

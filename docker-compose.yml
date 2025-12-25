@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  # TimescaleDB Database
+  timescaledb:
+    image: timescale/timescaledb:latest-pg14
+    container_name: iot-dashboard-db
+    environment:
+      POSTGRES_DB: iot_dashboard
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+      # Auto-run init scripts
+      - ./db/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - iot-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Next.js Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: iot-dashboard-app
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-postgres}@timescaledb:5432/iot_dashboard
+    ports:
+      - "3000:3000"
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    networks:
+      - iot-network
+    volumes:
+      # For development: mount source code
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+
+  # pgAdmin (Optional - for database management)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: iot-dashboard-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    depends_on:
+      - timescaledb
+    networks:
+      - iot-network
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+networks:
+  iot-network:
+    driver: bridge
+
+volumes:
+  timescaledb_data:
+    driver: local
+  pgadmin_data:
+    driver: local
