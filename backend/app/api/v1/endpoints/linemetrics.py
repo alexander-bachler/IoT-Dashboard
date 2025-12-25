@@ -10,9 +10,10 @@ from typing import List, Optional
 from datetime import datetime
 from uuid import UUID
 
-from app.api.deps import get_current_user, get_db
+from app.db.database import get_db
 from app.models.user import User
 from app.models.iot import DataSource
+from app.api.v1.endpoints.auth import get_current_user
 from app.services.linemetrics_service import (
     LineMetricsConfig,
     LineMetricsService,

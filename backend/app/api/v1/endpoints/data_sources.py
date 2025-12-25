@@ -377,3 +377,302 @@ async def list_files(
             })
 
     return {"files": files}
+
+
+@router.get("/{data_source_id}/file-columns")
+async def get_file_columns(
+    data_source_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get column names from uploaded file"""
+    # Verify data source exists and is file type
+    result = await db.execute(
+        select(DataSource).where(
+            DataSource.id == data_source_id,
+            DataSource.owner_id == current_user.id,
+            DataSource.type == "file"
+        )
+    )
+    data_source = result.scalar_one_or_none()
+
+    if not data_source:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File data source not found"
+        )
+
+    if not data_source.api_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No file uploaded to this data source"
+        )
+
+    file_path = Path(data_source.api_url)
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Uploaded file not found"
+        )
+
+    # Read file and extract column names
+    file_ext = file_path.suffix.lower()
+    try:
+        if file_ext == '.csv':
+            df = pd.read_csv(file_path, nrows=0)  # Just read headers
+        elif file_ext in ['.xlsx', '.xls']:
+            df = pd.read_excel(file_path, nrows=0)
+        elif file_ext == '.json':
+            df = pd.read_json(file_path, nrows=0)
+        elif file_ext == '.parquet':
+            df = pd.read_parquet(file_path)
+            # Parquet doesn't have nrows param, but reading metadata is fast
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unsupported file type: {file_ext}"
+            )
+
+        return {
+            "columns": df.columns.tolist(),
+            "column_count": len(df.columns)
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to read file columns: {str(e)}"
+        )
+
+
+@router.post("/{data_source_id}/import-file")
+async def import_file_to_database(
+    data_source_id: UUID,
+    request: dict,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Import file data into database (devices, metrics, measurements)
+    
+    Request body:
+    - time_column: Name of timestamp column in file
+    - value_column: Name of value column in file  
+    - device_column: Optional - column containing device identifier
+    - metric_name: Name for the metric (default: "value")
+    - device_name: Fixed device name if device_column not specified
+    """
+    time_column = request.get("time_column")
+    value_column = request.get("value_column")
+    device_column = request.get("device_column")
+    metric_name = request.get("metric_name", "value")
+    device_name = request.get("device_name")
+    
+    if not time_column or not value_column:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="time_column and value_column are required"
+        )
+    
+    # Verify data source exists and is file type
+    result = await db.execute(
+        select(DataSource).where(
+            DataSource.id == data_source_id,
+            DataSource.owner_id == current_user.id,
+            DataSource.type == "file"
+        )
+    )
+    data_source = result.scalar_one_or_none()
+
+    if not data_source:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="File data source not found"
+        )
+
+    if not data_source.api_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No file uploaded to this data source"
+        )
+
+    file_path = Path(data_source.api_url)
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Uploaded file not found"
+        )
+
+    # Read file based on extension
+    file_ext = file_path.suffix.lower()
+    try:
+        if file_ext == '.csv':
+            df = pd.read_csv(file_path)
+        elif file_ext in ['.xlsx', '.xls']:
+            df = pd.read_excel(file_path)
+        elif file_ext == '.json':
+            df = pd.read_json(file_path)
+        elif file_ext == '.parquet':
+            df = pd.read_parquet(file_path)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unsupported file type: {file_ext}"
+            )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to read file: {str(e)}"
+        )
+
+    # Validate columns exist
+    if time_column not in df.columns:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Time column '{time_column}' not found. Available: {', '.join(df.columns)}"
+        )
+
+    if value_column not in df.columns:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Value column '{value_column}' not found"
+        )
+
+    if device_column and device_column not in df.columns:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Device column '{device_column}' not found"
+        )
+
+    # Statistics
+    stats = {
+        "devices_created": 0,
+        "metrics_created": 0,
+        "measurements_imported": 0,
+        "errors": []
+    }
+
+    # Get or create devices
+    device_map = {}
+
+    if device_column:
+        # Multiple devices from column
+        unique_devices = df[device_column].unique()
+        for device_name_val in unique_devices:
+            device_name_str = str(device_name_val)
+            external_id = f"file_{data_source_id}_{device_name_str}"
+
+            # Check if device exists
+            device_result = await db.execute(
+                select(Device).where(
+                    Device.external_id == external_id,
+                    Device.data_source_id == data_source_id
+                )
+            )
+            device = device_result.scalar_one_or_none()
+
+            if not device:
+                device = Device(
+                    external_id=external_id,
+                    name=device_name_str,
+                    data_source_id=data_source_id,
+                    is_active=True
+                )
+                db.add(device)
+                await db.flush()
+                stats["devices_created"] += 1
+
+            device_map[device_name_str] = device
+    else:
+        # Single device
+        device_name_str = device_name or f"FileDevice_{file_path.stem}"
+        external_id = f"file_{data_source_id}_default"
+
+        device_result = await db.execute(
+            select(Device).where(
+                Device.external_id == external_id,
+                Device.data_source_id == data_source_id
+            )
+        )
+        device = device_result.scalar_one_or_none()
+
+        if not device:
+            device = Device(
+                external_id=external_id,
+                name=device_name_str,
+                data_source_id=data_source_id,
+                is_active=True
+            )
+            db.add(device)
+            await db.flush()
+            stats["devices_created"] += 1
+
+        device_map["default"] = device
+
+    # Create metrics
+    metric_map = {}
+
+    for device_key, device in device_map.items():
+        external_metric_id = f"{device.external_id}_{metric_name}"
+
+        metric_result = await db.execute(
+            select(Metric).where(
+                Metric.external_id == external_metric_id,
+                Metric.device_id == device.id
+            )
+        )
+        metric = metric_result.scalar_one_or_none()
+
+        if not metric:
+            metric = Metric(
+                external_id=external_metric_id,
+                name=metric_name,
+                device_id=device.id,
+                metric_type="float",
+                is_active=True
+            )
+            db.add(metric)
+            await db.flush()
+            stats["metrics_created"] += 1
+
+        metric_map[(str(device.id), metric_name)] = metric
+
+    # Import measurements
+    for idx, row in df.iterrows():
+        try:
+            timestamp = pd.to_datetime(row[time_column])
+            value = float(row[value_column])
+
+            if device_column:
+                device_key = str(row[device_column])
+                device = device_map.get(device_key)
+            else:
+                device = device_map["default"]
+
+            if not device:
+                stats["errors"].append(f"Row {idx}: Device not found")
+                continue
+
+            metric = metric_map.get((str(device.id), metric_name))
+            if not metric:
+                stats["errors"].append(f"Row {idx}: Metric not found")
+                continue
+
+            measurement = Measurement(
+                time=timestamp,
+                value=value,
+                metric_id=metric.id,
+                device_id=device.id
+            )
+            db.add(measurement)
+            stats["measurements_imported"] += 1
+
+        except Exception as e:
+            stats["errors"].append(f"Row {idx}: {str(e)}")
+
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": f"Imported {stats['measurements_imported']} measurements",
+        **stats
+    }
