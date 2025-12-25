@@ -8,11 +8,12 @@ import { ExportMenu } from '@/components/explorer/export-menu';
 import { DataQualityBadge } from '@/components/explorer/data-quality-badge';
 import { useExplorerStore } from '@/lib/stores/explorer-store';
 import { useTimeSeriesMeasurements, useMeasurementStatistics } from '@/lib/hooks/use-measurements';
+import { useLiveMeasurements } from '@/lib/hooks/use-websocket';
 import { ChartSkeleton, MetricCardSkeleton } from '@/components/ui/skeleton-loader';
 import { NoDataState, ErrorState } from '@/components/ui/empty-state';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown, Activity, Radio } from 'lucide-react';
 
 interface Series {
   metricId: string;
@@ -91,6 +92,8 @@ function ExplorerContent() {
   } = useExplorerStore();
 
   const timeRange = getTimeRange();
+  const [liveData, setLiveData] = useState<Map<string, Array<{ time: string; value: number; quality?: number }>>>(new Map());
+  const [isReceivingLive, setIsReceivingLive] = useState(false);
 
   // Fetch current time-series data
   const {
@@ -105,6 +108,39 @@ function ExplorerContent() {
     interval: autoAggregate ? aggregationInterval : undefined,
     aggregation: autoAggregate ? 'avg' : undefined,
   });
+
+  // Subscribe to live measurements
+  useLiveMeasurements(
+    selectedMetricIds,
+    (measurement) => {
+      setIsReceivingLive(true);
+
+      // Append new measurement to live data
+      setLiveData((prev) => {
+        const newMap = new Map(prev);
+        const metricData = newMap.get(measurement.metric_id) || [];
+
+        // Add new measurement and keep only last 100 points to avoid memory issues
+        const updatedData = [
+          ...metricData,
+          {
+            time: measurement.timestamp,
+            value: measurement.value,
+            quality: measurement.quality,
+          },
+        ].slice(-100);
+
+        newMap.set(measurement.metric_id, updatedData);
+        return newMap;
+      });
+
+      // Reset the live indicator after 2 seconds
+      setTimeout(() => setIsReceivingLive(false), 2000);
+    },
+    {
+      enabled: selectedMetricIds.length > 0 && !compareMode,
+    }
+  );
 
   // Fetch comparison data if compare mode is enabled
   const compareStart = useMemo(() => {
@@ -131,21 +167,31 @@ function ExplorerContent() {
     enabled: compareMode && selectedMetricIds.length > 0,
   });
 
-  // Combine current and comparison data
+  // Combine current, comparison, and live data
   const series = useMemo(() => {
-    let allSeries = currentData || [];
+    let allSeries = (currentData || []).map((s) => {
+      // Merge historical data with live data for this metric
+      const live = liveData.get(s.metric_id) || [];
+      return {
+        metricId: s.metric_id,
+        metricName: s.metric_name,
+        metricUnit: s.metric_unit,
+        data: [...s.data, ...live],
+      };
+    });
 
     if (compareMode && compareData) {
       const compareSeries = compareData.map((s) => ({
-        ...s,
-        metricName: `${s.metricName} (Previous)`,
-        metricId: `${s.metricId}-compare`,
+        metricId: `${s.metric_id}-compare`,
+        metricName: `${s.metric_name} (Previous)`,
+        metricUnit: s.metric_unit,
+        data: s.data,
       }));
       allSeries = [...allSeries, ...compareSeries];
     }
 
     return allSeries;
-  }, [currentData, compareData, compareMode]);
+  }, [currentData, compareData, compareMode, liveData]);
 
   if (selectedMetricIds.length === 0) {
     return (
@@ -189,9 +235,29 @@ function ExplorerContent() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Visualization</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle>Visualization</CardTitle>
+                {!compareMode && selectedMetricIds.length > 0 && (
+                  <Badge
+                    variant="outline"
+                    className={`gap-1.5 ${
+                      isReceivingLive
+                        ? 'bg-green-500/20 border-green-500/30 text-green-500'
+                        : 'bg-blue-500/20 border-blue-500/30 text-blue-500'
+                    }`}
+                  >
+                    <Radio className={`h-3 w-3 ${isReceivingLive ? 'animate-pulse' : ''}`} />
+                    LIVE
+                  </Badge>
+                )}
+              </div>
               <CardDescription>
                 Showing {selectedMetricIds.length} metric{selectedMetricIds.length > 1 ? 's' : ''}
+                {!compareMode && liveData.size > 0 && (
+                  <span className="text-green-500 ml-2">
+                    + {Array.from(liveData.values()).reduce((acc, data) => acc + data.length, 0)} live points
+                  </span>
+                )}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -203,7 +269,11 @@ function ExplorerContent() {
           </div>
         </CardHeader>
         <CardContent>
-          <TimeSeriesChart series={series} chartType={chartType} isLoading={isLoading} />
+          <TimeSeriesChart
+            series={series}
+            chartType={chartType === 'line' || chartType === 'bar' || chartType === 'area' || chartType === 'scatter' ? chartType : 'line'}
+            isLoading={isLoading}
+          />
         </CardContent>
       </Card>
 

@@ -16,11 +16,16 @@ export const measurementKeys = {
 /**
  * Hook to fetch time-series measurements
  */
-export function useTimeSeriesMeasurements(params: MeasurementQueryParams) {
+export function useTimeSeriesMeasurements(
+  params: MeasurementQueryParams,
+  options?: { enabled?: boolean }
+) {
   return useQuery({
     queryKey: measurementKeys.timeSeries(params),
     queryFn: () => measurementsApi.getTimeSeries(params),
-    enabled: !!params.metric_ids && params.metric_ids.length > 0,
+    enabled: options?.enabled !== undefined
+      ? options.enabled && !!params.metric_ids && params.metric_ids.length > 0
+      : !!params.metric_ids && params.metric_ids.length > 0,
     staleTime: 30 * 1000, // 30 seconds
     refetchInterval: 60 * 1000, // Auto-refetch every 60 seconds for real-time updates
   });
