@@ -5,12 +5,26 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DashboardGrid } from '@/components/dashboard/dashboard-grid';
 import { AddWidgetDialog } from '@/components/dashboard/add-widget-dialog';
+import { TemplateSelector } from '@/components/dashboard/template-selector';
 import { useDashboardStore } from '@/lib/stores/dashboard-store';
+import type { DashboardTemplate } from '@/lib/utils/dashboard-templates';
 import { Plus, Edit, Eye } from 'lucide-react';
 
 export default function DashboardsPage() {
   const [isAddWidgetOpen, setIsAddWidgetOpen] = useState(false);
-  const { isEditMode, setEditMode, widgets } = useDashboardStore();
+  const { isEditMode, setEditMode, widgets, addWidget } = useDashboardStore();
+
+  const handleApplyTemplate = (template: DashboardTemplate) => {
+    // Convert template widgets to dashboard widgets
+    template.widgets.forEach((widget) => {
+      addWidget({
+        title: widget.title,
+        chartType: widget.chartType,
+        metricIds: [],
+        layout: widget.layout,
+      });
+    });
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -23,6 +37,7 @@ export default function DashboardsPage() {
             </p>
           </div>
           <div className="flex gap-2">
+            <TemplateSelector onSelectTemplate={handleApplyTemplate} />
             <Button
               variant={isEditMode ? 'default' : 'outline'}
               onClick={() => setEditMode(!isEditMode)}

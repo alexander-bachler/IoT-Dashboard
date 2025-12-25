@@ -31,6 +31,8 @@ export default function ExplorerPage() {
     aggregationInterval,
     autoRefresh,
     refreshInterval,
+    compareMode,
+    compareOffset,
   } = useExplorerStore();
 
   const fetchData = useCallback(async () => {
@@ -44,7 +46,8 @@ export default function ExplorerPage() {
     try {
       const timeRange = getTimeRange();
 
-      const response = await fetch('/api/measurements/query', {
+      // Fetch current data
+      const currentResponse = await fetch('/api/measurements/query', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -57,15 +60,49 @@ export default function ExplorerPage() {
         }),
       });
 
-      const data = await response.json();
-      setSeries(data.series || []);
+      const currentData = await currentResponse.json();
+      let allSeries = currentData.series || [];
+
+      // If compare mode is enabled, fetch comparison data
+      if (compareMode) {
+        const compareStart = new Date(timeRange.start);
+        compareStart.setHours(compareStart.getHours() + compareOffset);
+        const compareEnd = new Date(timeRange.end);
+        compareEnd.setHours(compareEnd.getHours() + compareOffset);
+
+        const compareResponse = await fetch('/api/measurements/query', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            metricIds: selectedMetricIds,
+            startTime: compareStart.toISOString(),
+            endTime: compareEnd.toISOString(),
+            aggregation: autoAggregate ? aggregationInterval : undefined,
+          }),
+        });
+
+        const compareData = await compareResponse.json();
+
+        // Add comparison series with modified names
+        const compareSeries = (compareData.series || []).map((s: Series) => ({
+          ...s,
+          metricName: `${s.metricName} (Previous)`,
+          metricId: `${s.metricId}-compare`,
+        }));
+
+        allSeries = [...allSeries, ...compareSeries];
+      }
+
+      setSeries(allSeries);
     } catch (error) {
       console.error('Error fetching data:', error);
       setSeries([]);
     } finally {
       setIsLoading(false);
     }
-  }, [selectedMetricIds, getTimeRange, autoAggregate, aggregationInterval]);
+  }, [selectedMetricIds, getTimeRange, autoAggregate, aggregationInterval, compareMode, compareOffset]);
 
   // Auto-fetch when dependencies change
   useEffect(() => {

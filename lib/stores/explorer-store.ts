@@ -65,6 +65,12 @@ export interface ExplorerState {
   refreshInterval: number; // in seconds
   setRefreshInterval: (interval: number) => void;
 
+  // Compare mode
+  compareMode: boolean;
+  setCompareMode: (enabled: boolean) => void;
+  compareOffset: number; // in hours, e.g., -168 for "previous week"
+  setCompareOffset: (hours: number) => void;
+
   // Reset state
   reset: () => void;
 }
@@ -137,6 +143,11 @@ export const useExplorerStore = create<ExplorerState>()(
       refreshInterval: 30, // default 30 seconds
       setRefreshInterval: (interval) => set({ refreshInterval: interval }),
 
+      compareMode: false,
+      setCompareMode: (enabled) => set({ compareMode: enabled }),
+      compareOffset: -168, // default: previous week (-168 hours)
+      setCompareOffset: (hours) => set({ compareOffset: hours }),
+
       reset: () =>
         set({
           selectedDeviceId: null,
@@ -148,6 +159,8 @@ export const useExplorerStore = create<ExplorerState>()(
           aggregationInterval: '15 minutes',
           autoRefresh: false,
           refreshInterval: 30,
+          compareMode: false,
+          compareOffset: -168,
         }),
     }),
     {
@@ -159,6 +172,8 @@ export const useExplorerStore = create<ExplorerState>()(
         timeRangePreset: state.timeRangePreset,
         autoRefresh: state.autoRefresh,
         refreshInterval: state.refreshInterval,
+        compareMode: state.compareMode,
+        compareOffset: state.compareOffset,
       }),
     }
   )

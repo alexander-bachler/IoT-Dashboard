@@ -49,6 +49,10 @@ export function ExplorerControls({ onRefresh, isLoading }: ExplorerControlsProps
     setAutoRefresh,
     refreshInterval,
     setRefreshInterval,
+    compareMode,
+    setCompareMode,
+    compareOffset,
+    setCompareOffset,
   } = useExplorerStore();
 
   // Load devices on mount
@@ -266,6 +270,40 @@ export function ExplorerControls({ onRefresh, isLoading }: ExplorerControlsProps
                 <SelectItem value="300">Every 5 minutes</SelectItem>
               </SelectContent>
             </Select>
+          )}
+        </div>
+
+        {/* Compare Mode */}
+        <div className="space-y-2 pt-2 border-t">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={compareMode}
+              onChange={(e) => setCompareMode(e.target.checked)}
+              className="rounded"
+            />
+            <span className="text-sm font-medium">Compare Mode</span>
+          </label>
+          {compareMode && (
+            <Select
+              value={compareOffset.toString()}
+              onValueChange={(value) => setCompareOffset(parseInt(value))}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="-24">vs Previous Day</SelectItem>
+                <SelectItem value="-168">vs Previous Week</SelectItem>
+                <SelectItem value="-720">vs Previous Month</SelectItem>
+                <SelectItem value="-8760">vs Previous Year</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+          {compareMode && (
+            <p className="text-xs text-muted-foreground">
+              Compares current period with {Math.abs(compareOffset / 24)} days ago
+            </p>
           )}
         </div>
       </CardContent>

@@ -50,7 +50,7 @@ export function Header() {
 
         <div className="flex items-center gap-4">
           <div className="text-sm text-muted-foreground">
-            <span className="hidden sm:inline">v1.3.0</span>
+            <span className="hidden sm:inline">v1.4.0</span>
           </div>
           <ThemeToggle />
         </div>
