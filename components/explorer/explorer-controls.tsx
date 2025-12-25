@@ -170,11 +170,19 @@ export function ExplorerControls({ onRefresh, isLoading }: ExplorerControlsProps
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="line">Line</SelectItem>
-              <SelectItem value="bar">Bar</SelectItem>
-              <SelectItem value="area">Area</SelectItem>
-              <SelectItem value="scatter">Scatter</SelectItem>
+            <SelectContent className="max-h-[300px]">
+              <SelectItem value="line">📈 Line</SelectItem>
+              <SelectItem value="bar">📊 Bar</SelectItem>
+              <SelectItem value="area">📉 Area</SelectItem>
+              <SelectItem value="scatter">⚫ Scatter</SelectItem>
+              <SelectItem value="heatmap">🔥 Heatmap</SelectItem>
+              <SelectItem value="gauge">⏲️ Gauge</SelectItem>
+              <SelectItem value="radar">🎯 Radar</SelectItem>
+              <SelectItem value="pie">🥧 Pie</SelectItem>
+              <SelectItem value="funnel">🔻 Funnel</SelectItem>
+              <SelectItem value="treemap">🗂️ Treemap</SelectItem>
+              <SelectItem value="boxplot">📦 Boxplot</SelectItem>
+              <SelectItem value="sankey">🌊 Sankey</SelectItem>
             </SelectContent>
           </Select>
         </div>

@@ -7,10 +7,26 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Layout } from 'react-grid-layout';
 
+export type ChartType =
+  | 'line'
+  | 'bar'
+  | 'area'
+  | 'scatter'
+  | 'heatmap'
+  | 'gauge'
+  | 'radar'
+  | 'sankey'
+  | 'treemap'
+  | 'sunburst'
+  | 'boxplot'
+  | 'candlestick'
+  | 'pie'
+  | 'funnel';
+
 export interface WidgetConfig {
   id: string;
   title: string;
-  chartType: 'line' | 'bar' | 'area' | 'scatter';
+  chartType: ChartType;
   deviceId: string;
   metricIds: string[];
   timeRange: {

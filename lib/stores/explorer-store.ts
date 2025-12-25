@@ -6,7 +6,21 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type ChartType = 'line' | 'bar' | 'area' | 'scatter';
+export type ChartType =
+  | 'line'
+  | 'bar'
+  | 'area'
+  | 'scatter'
+  | 'heatmap'
+  | 'gauge'
+  | 'radar'
+  | 'sankey'
+  | 'treemap'
+  | 'sunburst'
+  | 'boxplot'
+  | 'candlestick'
+  | 'pie'
+  | 'funnel';
 
 export type TimeRangePreset = 'last_hour' | 'last_24h' | 'last_7d' | 'last_30d' | 'custom';
 
