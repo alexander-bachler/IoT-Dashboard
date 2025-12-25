@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { useExplorerStore, ChartType, TimeRangePreset } from '@/lib/stores/explorer-store';
 import { RefreshCw, BarChart3 } from 'lucide-react';
+import { CustomTimeRangeDialog } from './custom-time-range-dialog';
 
 interface Device {
   id: string;
@@ -36,12 +37,18 @@ export function ExplorerControls({ onRefresh, isLoading }: ExplorerControlsProps
     setSelectedMetricIds,
     timeRangePreset,
     setTimeRangePreset,
+    customTimeRange,
+    setCustomTimeRange,
     chartType,
     setChartType,
     autoAggregate,
     setAutoAggregate,
     aggregationInterval,
     setAggregationInterval,
+    autoRefresh,
+    setAutoRefresh,
+    refreshInterval,
+    setRefreshInterval,
   } = useExplorerStore();
 
   // Load devices on mount
@@ -159,8 +166,23 @@ export function ExplorerControls({ onRefresh, isLoading }: ExplorerControlsProps
               <SelectItem value="last_24h">Last 24 Hours</SelectItem>
               <SelectItem value="last_7d">Last 7 Days</SelectItem>
               <SelectItem value="last_30d">Last 30 Days</SelectItem>
+              <SelectItem value="custom">Custom Range</SelectItem>
             </SelectContent>
           </Select>
+
+          {timeRangePreset === 'custom' && (
+            <div className="pt-2">
+              <CustomTimeRangeDialog
+                value={customTimeRange}
+                onApply={setCustomTimeRange}
+              />
+              {customTimeRange && (
+                <div className="mt-2 text-xs text-muted-foreground">
+                  {customTimeRange.start.toLocaleString()} → {customTimeRange.end.toLocaleString()}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Chart Type */}
@@ -213,6 +235,35 @@ export function ExplorerControls({ onRefresh, isLoading }: ExplorerControlsProps
                 <SelectItem value="1 hour">1 Hour</SelectItem>
                 <SelectItem value="6 hours">6 Hours</SelectItem>
                 <SelectItem value="1 day">1 Day</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+
+        {/* Auto Refresh */}
+        <div className="space-y-2 pt-2 border-t">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={autoRefresh}
+              onChange={(e) => setAutoRefresh(e.target.checked)}
+              className="rounded"
+            />
+            <span className="text-sm font-medium">Auto-Refresh</span>
+          </label>
+          {autoRefresh && (
+            <Select
+              value={refreshInterval.toString()}
+              onValueChange={(value) => setRefreshInterval(parseInt(value))}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">Every 10 seconds</SelectItem>
+                <SelectItem value="30">Every 30 seconds</SelectItem>
+                <SelectItem value="60">Every 1 minute</SelectItem>
+                <SelectItem value="300">Every 5 minutes</SelectItem>
               </SelectContent>
             </Select>
           )}

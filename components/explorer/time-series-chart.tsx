@@ -3,6 +3,7 @@
 import ReactECharts from 'echarts-for-react';
 import { useMemo } from 'react';
 import type { EChartsOption } from 'echarts';
+import { getChartToolbox, getDataZoom } from '@/lib/utils/chart-toolbox';
 
 interface DataPoint {
   time: string;
@@ -67,6 +68,7 @@ export function TimeSeriesChart({ series, chartType, isLoading }: TimeSeriesChar
         },
         top: 10,
       },
+      toolbox: getChartToolbox('time-series-chart'),
       grid: {
         left: '3%',
         right: '4%',
@@ -110,23 +112,7 @@ export function TimeSeriesChart({ series, chartType, isLoading }: TimeSeriesChar
         },
       },
       series: seriesData,
-      dataZoom: [
-        {
-          type: 'inside',
-          start: 0,
-          end: 100,
-        },
-        {
-          start: 0,
-          end: 100,
-          backgroundColor: '#1f2937',
-          fillerColor: 'rgba(59, 130, 246, 0.2)',
-          borderColor: '#374151',
-          textStyle: {
-            color: '#9ca3af',
-          },
-        },
-      ],
+      dataZoom: getDataZoom(),
     };
   }, [series, chartType]);
 

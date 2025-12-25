@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Database, LineChart, LayoutDashboard, Home, BarChart3 } from 'lucide-react';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 const navigation = [
   { name: 'Home', href: '/', icon: Home },
@@ -51,6 +52,7 @@ export function Header() {
           <div className="text-sm text-muted-foreground">
             <span className="hidden sm:inline">v1.2.0</span>
           </div>
+          <ThemeToggle />
         </div>
       </div>
     </header>

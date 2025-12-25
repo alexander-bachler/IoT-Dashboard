@@ -3,6 +3,7 @@
 import ReactECharts from 'echarts-for-react';
 import { useMemo } from 'react';
 import type { EChartsOption } from 'echarts';
+import { getChartToolbox } from '@/lib/utils/chart-toolbox';
 
 interface DataPoint {
   time: string;
@@ -48,6 +49,7 @@ export function ScatterPlot({ series, xAxisLabel, yAxisLabel, isLoading }: Scatt
       textStyle: {
         color: '#e5e7eb',
       },
+      toolbox: getChartToolbox('scatter-plot'),
       tooltip: {
         trigger: 'item',
         backgroundColor: 'rgba(0, 0, 0, 0.9)',

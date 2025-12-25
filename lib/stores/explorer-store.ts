@@ -59,6 +59,12 @@ export interface ExplorerState {
   aggregationInterval: string; // e.g., '15 minutes', '1 hour'
   setAggregationInterval: (interval: string) => void;
 
+  // Real-time refresh
+  autoRefresh: boolean;
+  setAutoRefresh: (enabled: boolean) => void;
+  refreshInterval: number; // in seconds
+  setRefreshInterval: (interval: number) => void;
+
   // Reset state
   reset: () => void;
 }
@@ -126,6 +132,11 @@ export const useExplorerStore = create<ExplorerState>()(
       aggregationInterval: '15 minutes',
       setAggregationInterval: (interval) => set({ aggregationInterval: interval }),
 
+      autoRefresh: false,
+      setAutoRefresh: (enabled) => set({ autoRefresh: enabled }),
+      refreshInterval: 30, // default 30 seconds
+      setRefreshInterval: (interval) => set({ refreshInterval: interval }),
+
       reset: () =>
         set({
           selectedDeviceId: null,
@@ -135,6 +146,8 @@ export const useExplorerStore = create<ExplorerState>()(
           chartType: 'line',
           autoAggregate: true,
           aggregationInterval: '15 minutes',
+          autoRefresh: false,
+          refreshInterval: 30,
         }),
     }),
     {
@@ -144,6 +157,8 @@ export const useExplorerStore = create<ExplorerState>()(
         autoAggregate: state.autoAggregate,
         aggregationInterval: state.aggregationInterval,
         timeRangePreset: state.timeRangePreset,
+        autoRefresh: state.autoRefresh,
+        refreshInterval: state.refreshInterval,
       }),
     }
   )

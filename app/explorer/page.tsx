@@ -29,6 +29,8 @@ export default function ExplorerPage() {
     chartType,
     autoAggregate,
     aggregationInterval,
+    autoRefresh,
+    refreshInterval,
   } = useExplorerStore();
 
   const fetchData = useCallback(async () => {
@@ -69,6 +71,19 @@ export default function ExplorerPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Auto-refresh timer
+  useEffect(() => {
+    if (!autoRefresh || selectedMetricIds.length === 0) {
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      fetchData();
+    }, refreshInterval * 1000);
+
+    return () => clearInterval(intervalId);
+  }, [autoRefresh, refreshInterval, selectedMetricIds.length, fetchData]);
 
   return (
     <div className="min-h-screen bg-background">
