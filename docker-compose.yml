@@ -47,6 +47,46 @@ services:
       - /app/.next
     command: npm run dev
 
+  # Redis (for caching and real-time)
+  redis:
+    image: redis:7-alpine
+    container_name: iot-dashboard-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - iot-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # FastAPI Backend Server
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: iot-dashboard-backend
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:${DB_PASSWORD:-postgres}@timescaledb:5432/iot_dashboard
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-change-this-secret-key-in-production}
+      - CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+    ports:
+      - "8000:8000"
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - iot-network
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
   # pgAdmin (Optional - for database management)
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -70,6 +110,8 @@ networks:
 
 volumes:
   timescaledb_data:
+    driver: local
+  redis_data:
     driver: local
   pgadmin_data:
     driver: local
