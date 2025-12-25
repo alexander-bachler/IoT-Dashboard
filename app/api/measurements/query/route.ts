@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { measurements, metrics } from '@/db/schema';
 import { eq, and, gte, lte, sql, inArray } from 'drizzle-orm';
+import { withRateLimit, RateLimitPresets } from '@/lib/utils/rate-limiter';
 
 interface MeasurementQueryParams {
   metricIds: string[];
@@ -10,7 +11,7 @@ interface MeasurementQueryParams {
   aggregation?: string; // e.g., '15 minutes', '1 hour'
 }
 
-export async function POST(request: NextRequest) {
+async function handlePost(request: NextRequest) {
   try {
     const body: MeasurementQueryParams = await request.json();
     const { metricIds, startTime, endTime, aggregation } = body;
@@ -129,3 +130,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export const POST = withRateLimit(handlePost, RateLimitPresets.data);

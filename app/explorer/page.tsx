@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ExplorerControls } from '@/components/explorer/explorer-controls';
 import { TimeSeriesChart } from '@/components/explorer/time-series-chart';
 import { ExportMenu } from '@/components/explorer/export-menu';
+import { DataQualityBadge } from '@/components/explorer/data-quality-badge';
 import { useExplorerStore } from '@/lib/stores/explorer-store';
 
 interface Series {
@@ -151,7 +152,12 @@ export default function ExplorerPage() {
                         : `Showing ${selectedMetricIds.length} metric${selectedMetricIds.length > 1 ? 's' : ''}`}
                     </CardDescription>
                   </div>
-                  <ExportMenu series={series} disabled={isLoading} />
+                  <div className="flex items-center gap-2">
+                    {series.length > 0 && series[0] && series[0].data.length > 0 && (
+                      <DataQualityBadge data={series[0].data} />
+                    )}
+                    <ExportMenu series={series} disabled={isLoading} />
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>

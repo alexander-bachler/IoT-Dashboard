@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Database, LineChart, LayoutDashboard, Home, BarChart3 } from 'lucide-react';
+import { Database, LineChart, LayoutDashboard, Home, BarChart3, AlertTriangle } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 const navigation = [
@@ -11,6 +11,7 @@ const navigation = [
   { name: 'Data Sources', href: '/data-sources', icon: Database },
   { name: 'Explorer', href: '/explorer', icon: LineChart },
   { name: 'Charts', href: '/charts', icon: BarChart3 },
+  { name: 'Anomalies', href: '/anomalies', icon: AlertTriangle },
   { name: 'Dashboards', href: '/dashboards', icon: LayoutDashboard },
 ];
 
@@ -50,7 +51,7 @@ export function Header() {
 
         <div className="flex items-center gap-4">
           <div className="text-sm text-muted-foreground">
-            <span className="hidden sm:inline">v1.4.0</span>
+            <span className="hidden sm:inline">v1.5.0</span>
           </div>
           <ThemeToggle />
         </div>
