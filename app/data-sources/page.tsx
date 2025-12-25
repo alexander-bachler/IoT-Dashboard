@@ -13,16 +13,21 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Database, Plus, RefreshCw, CheckCircle, XCircle, Activity, TrendingUp, Trash2 } from 'lucide-react';
+import { Database, Plus, RefreshCw, CheckCircle, XCircle, Activity, TrendingUp, Trash2, Download, Zap } from 'lucide-react';
 import { format } from 'date-fns';
 import { useDataSources, useCreateDataSource, useSyncDataSource, useDeleteDataSource, useDataSourceStats } from '@/lib/hooks/use-data-sources';
 import { DataSourceSkeleton } from '@/components/ui/skeleton-loader';
 import { NoDataSourcesState, ErrorState } from '@/components/ui/empty-state';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { Badge } from '@/components/ui/badge';
+import { AddLineMetricsDialog } from '@/components/data-sources/add-linemetrics-dialog';
+import { LineMetricsImportDialog } from '@/components/data-sources/linemetrics-import-dialog';
+import { toast } from 'sonner';
 
 function DataSourceCard({ source }: { source: any }) {
   const [mounted, setMounted] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const { mutate: syncData, isPending: isSyncing } = useSyncDataSource();
   const { mutate: deleteSource, isPending: isDeleting } = useDeleteDataSource();
   const { data: stats } = useDataSourceStats(source.id);
@@ -31,8 +36,38 @@ function DataSourceCard({ source }: { source: any }) {
     setMounted(true);
   }, []);
 
-  const handleSync = () => {
-    syncData(source.id);
+  const isLineMetrics = source.type === 'linemetrics';
+
+  const handleSync = async () => {
+    if (isLineMetrics) {
+      // LineMetrics-specific sync
+      setSyncing(true);
+      try {
+        const response = await fetch(`/api/v1/linemetrics/${source.id}/sync`, {
+          method: 'POST',
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.detail || 'Sync failed');
+        }
+
+        const result = await response.json();
+        toast.success(
+          `Synced ${result.devices_created + result.devices_updated} devices and ${result.metrics_created} metrics`
+        );
+
+        // Refresh stats
+        window.location.reload();
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to sync LineMetrics data');
+      } finally {
+        setSyncing(false);
+      }
+    } else {
+      // Generic sync
+      syncData(source.id);
+    }
   };
 
   const handleDelete = () => {
@@ -41,8 +76,8 @@ function DataSourceCard({ source }: { source: any }) {
     }
   };
 
-  const statusColor = source.status === 'active' ? 'text-green-500' : source.status === 'error' ? 'text-red-500' : 'text-gray-500';
-  const StatusIcon = source.status === 'active' ? CheckCircle : XCircle;
+  const statusColor = source.is_active ? 'text-green-500' : 'text-red-500';
+  const StatusIcon = source.is_active ? CheckCircle : XCircle;
 
   return (
     <Card className="glass-card hover-scale">
@@ -113,13 +148,26 @@ function DataSourceCard({ source }: { source: any }) {
         <div className="flex gap-2 pt-2">
           <Button
             variant="outline"
-            className="flex-1 gap-2"
+            className={isLineMetrics ? 'flex-1 gap-2' : 'flex-1 gap-2'}
             onClick={handleSync}
-            disabled={isSyncing}
+            disabled={syncing || isSyncing}
           >
-            <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-            {isSyncing ? 'Syncing...' : 'Sync'}
+            <RefreshCw className={`h-4 w-4 ${(syncing || isSyncing) ? 'animate-spin' : ''}`} />
+            {(syncing || isSyncing) ? 'Syncing...' : 'Sync'}
           </Button>
+
+          {isLineMetrics && (
+            <Button
+              variant="outline"
+              size="icon"
+              className="gap-2"
+              onClick={() => setIsImportDialogOpen(true)}
+              title="Import measurements"
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+          )}
+
           <Button
             variant="ghost"
             size="icon"
@@ -131,6 +179,19 @@ function DataSourceCard({ source }: { source: any }) {
           </Button>
         </div>
       </CardContent>
+
+      {/* LineMetrics Import Dialog */}
+      {isLineMetrics && (
+        <LineMetricsImportDialog
+          datasourceId={source.id}
+          open={isImportDialogOpen}
+          onOpenChange={setIsImportDialogOpen}
+          onSuccess={() => {
+            // Optionally refresh stats after import
+            window.location.reload();
+          }}
+        />
+      )}
     </Card>
   );
 }
@@ -351,10 +412,16 @@ function StatsCards({ dataSources }: { dataSources: any[] }) {
 
 export default function DataSourcesPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const { data } = useDataSources({ page: 1, page_size: 50 });
-  
+  const [isAddLineMetricsOpen, setIsAddLineMetricsOpen] = useState(false);
+  const { data, refetch } = useDataSources({ page: 1, page_size: 50 });
+
   // Safely extract data sources array
   const dataSources = data?.data ?? [];
+
+  const handleLineMetricsSuccess = () => {
+    setIsAddLineMetricsOpen(false);
+    refetch();
+  };
 
   return (
     <ErrorBoundary>
@@ -371,10 +438,13 @@ export default function DataSourcesPage() {
               Manage connections to your IoT data providers and platforms
             </p>
           </div>
-          <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add Data Source
-          </Button>
+          <div className="flex gap-2">
+            <AddLineMetricsDialog onSuccess={handleLineMetricsSuccess} />
+            <Button onClick={() => setIsAddDialogOpen(true)} variant="outline" className="gap-2">
+              <Plus className="h-4 w-4" />
+              Add Generic
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
