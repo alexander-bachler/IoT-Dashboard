@@ -1,27 +1,30 @@
 import axios, { AxiosError, AxiosInstance, AxiosResponse } from 'axios';
 import { toast } from 'sonner';
-
-// API Base URL - can be configured via environment variable
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
+import { API_CONFIG } from './config';
 
 // Create Axios instance with default config
 const apiClient: AxiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 30000, // 30 seconds
+  baseURL: API_CONFIG.BASE_URL,
+  timeout: API_CONFIG.TIMEOUT,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
+// Store session getter globally (will be set by SessionProvider)
+let getSessionToken: (() => string | null) | null = null;
+
+export function setSessionTokenGetter(getter: () => string | null) {
+  getSessionToken = getter;
+}
+
 // Request interceptor - add auth tokens, logging, etc.
 apiClient.interceptors.request.use(
   (config) => {
-    // Add auth token if available
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('auth_token');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+    // Add auth token from NextAuth session
+    const token = getSessionToken?.();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
 
     // Log request in development
@@ -59,14 +62,12 @@ apiClient.interceptors.response.use(
       toast.error(errorMessage);
     }
 
-    // Handle 401 Unauthorized - redirect to login or refresh token
+    // Handle 401 Unauthorized - session expired
     if (error.response?.status === 401) {
-      // Clear auth token
+      // Redirect to sign in page
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('auth_token');
+        window.location.href = '/auth/signin';
       }
-      // Redirect to login or show auth modal
-      // This would be implemented based on your auth flow
     }
 
     return Promise.reject(error);
