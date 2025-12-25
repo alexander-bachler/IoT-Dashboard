@@ -22,12 +22,14 @@ import { NoDataSourcesState, ErrorState } from '@/components/ui/empty-state';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { Badge } from '@/components/ui/badge';
 import { LineMetricsImportDialog } from '@/components/data-sources/linemetrics-import-dialog';
+import { FileImportDialog } from '@/components/data-sources/file-import-dialog';
 import { toast } from 'sonner';
 
 function DataSourceCard({ source }: { source: any }) {
   const [mounted, setMounted] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isFileImportDialogOpen, setIsFileImportDialogOpen] = useState(false);
   const { mutate: syncData, isPending: isSyncing } = useSyncDataSource();
   const { mutate: deleteSource, isPending: isDeleting } = useDeleteDataSource();
   const { data: stats } = useDataSourceStats(source.id);
@@ -37,6 +39,7 @@ function DataSourceCard({ source }: { source: any }) {
   }, []);
 
   const isLineMetrics = source.type === 'linemetrics';
+  const isFile = source.type === 'file';
 
   const handleSync = async () => {
     if (isLineMetrics) {
@@ -168,6 +171,18 @@ function DataSourceCard({ source }: { source: any }) {
             </Button>
           )}
 
+          {isFile && (
+            <Button
+              variant="outline"
+              size="icon"
+              className="gap-2"
+              onClick={() => setIsFileImportDialogOpen(true)}
+              title="Import file to database"
+            >
+              <Database className="h-4 w-4" />
+            </Button>
+          )}
+
           <Button
             variant="ghost"
             size="icon"
@@ -187,7 +202,18 @@ function DataSourceCard({ source }: { source: any }) {
           open={isImportDialogOpen}
           onOpenChange={setIsImportDialogOpen}
           onSuccess={() => {
-            // Optionally refresh stats after import
+            window.location.reload();
+          }}
+        />
+      )}
+
+      {/* File Import Dialog */}
+      {isFile && (
+        <FileImportDialog
+          datasourceId={source.id}
+          open={isFileImportDialogOpen}
+          onOpenChange={setIsFileImportDialogOpen}
+          onSuccess={() => {
             window.location.reload();
           }}
         />
