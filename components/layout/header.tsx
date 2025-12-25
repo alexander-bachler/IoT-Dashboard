@@ -3,12 +3,13 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Database, LineChart, LayoutDashboard, Home } from 'lucide-react';
+import { Database, LineChart, LayoutDashboard, Home, BarChart3 } from 'lucide-react';
 
 const navigation = [
   { name: 'Home', href: '/', icon: Home },
   { name: 'Data Sources', href: '/data-sources', icon: Database },
   { name: 'Explorer', href: '/explorer', icon: LineChart },
+  { name: 'Charts', href: '/charts', icon: BarChart3 },
   { name: 'Dashboards', href: '/dashboards', icon: LayoutDashboard },
 ];
 
@@ -48,7 +49,7 @@ export function Header() {
 
         <div className="flex items-center gap-4">
           <div className="text-sm text-muted-foreground">
-            <span className="hidden sm:inline">v1.0.0</span>
+            <span className="hidden sm:inline">v1.2.0</span>
           </div>
         </div>
       </div>
