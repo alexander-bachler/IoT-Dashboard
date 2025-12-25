@@ -2,7 +2,6 @@
 
 import ReactECharts from 'echarts-for-react';
 import { useMemo } from 'react';
-import type { EChartsOption } from 'echarts';
 import { getChartToolbox } from '@/lib/utils/chart-toolbox';
 
 interface DataPoint {
@@ -26,7 +25,7 @@ interface ScatterPlotProps {
 }
 
 export function ScatterPlot({ series, xAxisLabel, yAxisLabel, isLoading }: ScatterPlotProps) {
-  const option: EChartsOption = useMemo(() => {
+  const option = useMemo(() => {
     // For scatter plot, we need x,y pairs
     // If we have 2 metrics, use them as x,y
     // Otherwise, use time as x-axis and value as y-axis

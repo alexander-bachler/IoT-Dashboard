@@ -2,7 +2,6 @@
 
 import ReactECharts from 'echarts-for-react';
 import { useMemo } from 'react';
-import type { EChartsOption } from 'echarts';
 
 interface FunnelDataPoint {
   value: number;
@@ -17,7 +16,7 @@ interface FunnelChartProps {
 }
 
 export function FunnelChart({ data, title, sort = 'descending', isLoading }: FunnelChartProps) {
-  const option: EChartsOption = useMemo(() => {
+  const option = useMemo(() => {
     const colors = [
       '#3b82f6',
       '#22c55e',

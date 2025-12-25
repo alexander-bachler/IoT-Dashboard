@@ -54,12 +54,13 @@ export function useAnomalyStatistics(params?: { start_time?: string; end_time?: 
 /**
  * Hook to fetch recent anomalies
  */
-export function useRecentAnomalies(limit: number = 10) {
+export function useRecentAnomalies(limit: number = 10, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: anomalyKeys.recent(limit),
     queryFn: () => anomaliesApi.getRecent(limit),
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000, // Auto-refetch every minute
+    enabled: options?.enabled ?? true,
   });
 }
 

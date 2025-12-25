@@ -4,6 +4,7 @@ Pydantic schemas for Dashboard endpoints
 from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional, Any, Dict
+from uuid import UUID
 
 
 class DashboardBase(BaseModel):
@@ -31,8 +32,8 @@ class DashboardUpdate(BaseModel):
 
 class DashboardResponse(DashboardBase):
     """Schema for dashboard response"""
-    id: int
-    owner_id: int
+    id: UUID
+    owner_id: UUID
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -50,7 +51,7 @@ class ChartBase(BaseModel):
 
 class ChartCreate(ChartBase):
     """Schema for creating a chart"""
-    dashboard_id: int
+    dashboard_id: UUID
 
 
 class ChartUpdate(BaseModel):
@@ -63,8 +64,8 @@ class ChartUpdate(BaseModel):
 
 class ChartResponse(ChartBase):
     """Schema for chart response"""
-    id: int
-    dashboard_id: int
+    id: UUID
+    dashboard_id: UUID
     created_at: datetime
     updated_at: Optional[datetime] = None
 

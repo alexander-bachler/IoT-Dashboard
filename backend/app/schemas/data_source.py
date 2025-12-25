@@ -1,20 +1,20 @@
 """
 Pydantic schemas for Data Source endpoints
 """
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional, Dict, Any
-from app.models.iot import DataSourceType, DataSourceStatus
+from uuid import UUID
 
 
 class DataSourceBase(BaseModel):
     """Base data source schema"""
     name: str = Field(..., min_length=1, max_length=255)
-    type: DataSourceType
-    api_url: Optional[str] = None
-    api_token: Optional[str] = None
+    type: str = Field(..., min_length=1, max_length=50)  # api, mqtt, database, file
+    api_url: str
+    api_token: str
+    client_id: Optional[str] = None
     config: Optional[Dict[str, Any]] = None
-    description: Optional[str] = None
 
 
 class DataSourceCreate(DataSourceBase):
@@ -25,22 +25,22 @@ class DataSourceCreate(DataSourceBase):
 class DataSourceUpdate(BaseModel):
     """Schema for updating a data source"""
     name: Optional[str] = None
-    type: Optional[DataSourceType] = None
-    status: Optional[DataSourceStatus] = None
+    type: Optional[str] = None
+    is_active: Optional[bool] = None
     api_url: Optional[str] = None
     api_token: Optional[str] = None
+    client_id: Optional[str] = None
     config: Optional[Dict[str, Any]] = None
-    description: Optional[str] = None
 
 
 class DataSourceResponse(DataSourceBase):
     """Schema for data source response"""
-    id: int
-    status: DataSourceStatus
+    id: UUID
+    is_active: bool
     last_sync: Optional[datetime] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
-    owner_id: int
+    owner_id: Optional[UUID] = None
 
     class Config:
         from_attributes = True

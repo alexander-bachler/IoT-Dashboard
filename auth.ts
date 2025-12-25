@@ -1,10 +1,10 @@
-import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import type { NextAuthOptions } from 'next-auth';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Use internal Docker network URL for server-side auth, fallback to public URL
+const API_BASE_URL = process.env.AUTH_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-export const authConfig: NextAuthOptions = {
+export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       name: 'Credentials',
@@ -95,6 +95,5 @@ export const authConfig: NextAuthOptions = {
     strategy: 'jwt',
     maxAge: 30 * 60, // 30 minutes
   },
+  secret: process.env.NEXTAUTH_SECRET,
 };
-
-export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);

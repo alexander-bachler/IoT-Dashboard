@@ -2,7 +2,6 @@
 
 import ReactECharts from 'echarts-for-react';
 import { useMemo } from 'react';
-import type { EChartsOption } from 'echarts';
 import { getChartToolbox, getDataZoom } from '@/lib/utils/chart-toolbox';
 
 interface DataPoint {
@@ -26,7 +25,7 @@ interface TimeSeriesChartProps {
 }
 
 export function TimeSeriesChart({ series, chartType, isLoading }: TimeSeriesChartProps) {
-  const option: EChartsOption = useMemo(() => {
+  const option = useMemo(() => {
     const seriesData = series.map((s) => {
       const baseConfig = {
         name: s.metricName,
@@ -35,7 +34,7 @@ export function TimeSeriesChart({ series, chartType, isLoading }: TimeSeriesChar
         smooth: chartType === 'line' || chartType === 'area',
         areaStyle: chartType === 'area' ? {} : undefined,
         emphasis: {
-          focus: 'series',
+          focus: 'series' as const,
         },
       };
 

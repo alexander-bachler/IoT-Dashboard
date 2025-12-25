@@ -1,24 +1,38 @@
-import { auth } from '@/auth';
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 
-export default auth((req) => {
-  const isAuthenticated = !!req.auth;
-  const isAuthPage = req.nextUrl.pathname.startsWith('/auth');
+// Pages that don't require authentication
+const publicPages = ['/', '/auth/signin', '/auth/signup', '/auth/login'];
 
-  // Redirect authenticated users away from auth pages
-  if (isAuthenticated && isAuthPage) {
-    return NextResponse.redirect(new URL('/', req.url));
+export async function middleware(request: NextRequest) {
+  const token = await getToken({ 
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET,
+  });
+  
+  const isAuthenticated = !!token;
+  const isAuthPage = request.nextUrl.pathname.startsWith('/auth');
+  const isPublicPage = publicPages.includes(request.nextUrl.pathname);
+
+  // Redirect authenticated users away from auth pages (except /auth/*)
+  if (isAuthenticated && isAuthPage && request.nextUrl.pathname !== '/') {
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
-  // Redirect unauthenticated users to sign-in (except for auth pages)
-  if (!isAuthenticated && !isAuthPage) {
-    const signInUrl = new URL('/auth/signin', req.url);
-    signInUrl.searchParams.set('callbackUrl', req.nextUrl.pathname);
+  // Allow public pages without authentication
+  if (isPublicPage) {
+    return NextResponse.next();
+  }
+
+  // Redirect unauthenticated users to sign-in (for protected pages)
+  if (!isAuthenticated) {
+    const signInUrl = new URL('/auth/signin', request.url);
+    signInUrl.searchParams.set('callbackUrl', request.nextUrl.pathname);
     return NextResponse.redirect(signInUrl);
   }
 
   return NextResponse.next();
-});
+}
 
 export const config = {
   matcher: [

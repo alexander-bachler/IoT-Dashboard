@@ -2,7 +2,6 @@
 
 import ReactECharts from 'echarts-for-react';
 import { useMemo } from 'react';
-import type { EChartsOption } from 'echarts';
 
 interface RadarDataPoint {
   value: number[];
@@ -22,7 +21,7 @@ interface RadarChartProps {
 }
 
 export function RadarChart({ indicators, data, isLoading }: RadarChartProps) {
-  const option: EChartsOption = useMemo(() => {
+  const option = useMemo(() => {
     return {
       backgroundColor: 'transparent',
       textStyle: {

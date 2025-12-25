@@ -2,7 +2,6 @@
 
 import ReactECharts from 'echarts-for-react';
 import { useMemo } from 'react';
-import type { EChartsOption } from 'echarts';
 
 interface SankeyNode {
   name: string;
@@ -21,7 +20,7 @@ interface SankeyDiagramProps {
 }
 
 export function SankeyDiagram({ nodes, links, isLoading }: SankeyDiagramProps) {
-  const option: EChartsOption = useMemo(() => {
+  const option = useMemo(() => {
     return {
       backgroundColor: 'transparent',
       textStyle: {

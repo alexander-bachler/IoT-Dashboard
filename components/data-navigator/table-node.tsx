@@ -2,7 +2,15 @@ import { memo } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Database, Key, Link } from 'lucide-react';
 
-export const TableNode = memo(({ data }: NodeProps) => {
+interface TableNodeData {
+  label: string;
+  columns: Array<{ name: string; type: string; isPrimary?: boolean; isForeign?: boolean }>;
+  recordCount: string;
+  isHypertable?: boolean;
+}
+
+export const TableNode = memo(({ data: rawData }: NodeProps) => {
+  const data = rawData as unknown as TableNodeData;
   return (
     <div className="bg-slate-900 border-2 border-slate-700 rounded-lg shadow-xl min-w-[250px] hover:border-blue-500 transition-colors">
       {/* Header */}

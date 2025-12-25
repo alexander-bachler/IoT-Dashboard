@@ -2,7 +2,6 @@
 
 import ReactECharts from 'echarts-for-react';
 import { useMemo } from 'react';
-import type { EChartsOption } from 'echarts';
 
 interface TreemapDataPoint {
   name: string;
@@ -17,7 +16,7 @@ interface TreemapProps {
 }
 
 export function Treemap({ data, title, isLoading }: TreemapProps) {
-  const option: EChartsOption = useMemo(() => {
+  const option = useMemo(() => {
     return {
       backgroundColor: 'transparent',
       textStyle: {

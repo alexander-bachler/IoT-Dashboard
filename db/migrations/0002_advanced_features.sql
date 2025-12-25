@@ -12,18 +12,16 @@
 -- User Management
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email TEXT NOT NULL UNIQUE,
-  username TEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,
-  first_name TEXT,
-  last_name TEXT,
-  role TEXT NOT NULL DEFAULT 'viewer', -- admin, editor, viewer
+  email VARCHAR(255) NOT NULL UNIQUE,
+  username VARCHAR(100) NOT NULL UNIQUE,
+  hashed_password VARCHAR(255) NOT NULL,
+  full_name VARCHAR(255),
+  role VARCHAR(20) NOT NULL DEFAULT 'user', -- admin, user, viewer
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
-  email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+  is_verified BOOLEAN NOT NULL DEFAULT FALSE,
   last_login TIMESTAMPTZ,
-  preferences JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at TIMESTAMPTZ
 );
 
 CREATE INDEX IF NOT EXISTS users_email_idx ON users(email);

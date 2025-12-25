@@ -2,7 +2,6 @@
 
 import ReactECharts from 'echarts-for-react';
 import { useMemo } from 'react';
-import type { EChartsOption } from 'echarts';
 
 interface PieDataPoint {
   value: number;
@@ -26,7 +25,7 @@ export function PieChart({
   isDonut = false,
   isLoading,
 }: PieChartProps) {
-  const option: EChartsOption = useMemo(() => {
+  const option = useMemo(() => {
     const colors = [
       '#3b82f6',
       '#22c55e',

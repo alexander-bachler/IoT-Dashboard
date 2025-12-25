@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,15 +15,60 @@ import {
   TrendingUp,
   Zap,
   ArrowRight,
+  LogIn,
 } from 'lucide-react';
 import { useDataSources } from '@/lib/hooks/use-data-sources';
 import { useRecentAnomalies } from '@/lib/hooks/use-anomalies';
 import { MetricCardSkeleton } from '@/components/ui/skeleton-loader';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
+import { useSession } from 'next-auth/react';
 
 function LiveStatsCards() {
-  const { data: dataSources, isLoading: sourcesLoading } = useDataSources({ page: 1, page_size: 100 });
-  const { data: recentAnomalies, isLoading: anomaliesLoading } = useRecentAnomalies(10);
+  const [mounted, setMounted] = useState(false);
+  const { data: session, status } = useSession();
+  const isAuthenticated = status === 'authenticated';
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
+  const { data: dataSources, isLoading: sourcesLoading, error: sourcesError } = useDataSources(
+    { page: 1, page_size: 100 },
+    { enabled: isAuthenticated && mounted }
+  );
+  const { data: recentAnomalies, isLoading: anomaliesLoading, error: anomaliesError } = useRecentAnomalies(
+    10,
+    { enabled: isAuthenticated && mounted }
+  );
+
+  // Show skeleton during SSR and initial client render
+  if (!mounted || status === 'loading') {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-12">
+        <MetricCardSkeleton />
+        <MetricCardSkeleton />
+        <MetricCardSkeleton />
+        <MetricCardSkeleton />
+      </div>
+    );
+  }
+
+  // Show login prompt if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="glass-card p-8 mb-12 text-center">
+        <LogIn className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+        <h3 className="text-xl font-semibold mb-2">Sign in to view live stats</h3>
+        <p className="text-muted-foreground mb-4">Connect your data sources and monitor your IoT devices in real-time</p>
+        <Link href="/auth/signin">
+          <Button size="lg" className="gap-2">
+            Sign In
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </Link>
+      </div>
+    );
+  }
 
   if (sourcesLoading || anomaliesLoading) {
     return (
@@ -35,9 +81,10 @@ function LiveStatsCards() {
     );
   }
 
+  const dataSourcesList = dataSources?.data || [];
   const totalSources = dataSources?.total || 0;
-  const activeSources = dataSources?.data.filter((s) => s.status === 'active').length || 0;
-  const totalDevices = dataSources?.data.reduce((acc, s) => acc + (s.device_count || 0), 0) || 0;
+  const activeSources = dataSourcesList.filter((s) => s.status === 'active').length;
+  const totalDevices = dataSourcesList.reduce((acc, s) => acc + (s.device_count || 0), 0);
   const criticalAnomalies = recentAnomalies?.filter((a) => a.severity === 'critical').length || 0;
 
   return (

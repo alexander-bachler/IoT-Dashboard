@@ -6,11 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import List
+from uuid import UUID
+from datetime import datetime, timedelta
 
 from app.db.database import get_db
 from app.models.user import User
 from app.models.iot import Metric, Device, DataSource
-from app.models.anomaly import Anomaly, AnomalySeverity, AnomalyStatus
+from app.models.anomaly import Anomaly
 from app.schemas.anomaly import AnomalyCreate, AnomalyUpdate, AnomalyResponse, AnomalyQuery, AnomalyStatistics
 from app.api.v1.endpoints.auth import get_current_user
 
@@ -27,9 +29,9 @@ async def query_anomalies(
     # Build base query
     stmt = (
         select(Anomaly)
-        .join(Metric)
-        .join(Device)
-        .join(DataSource)
+        .join(Metric, Metric.id == Anomaly.metric_id)
+        .join(Device, Device.id == Anomaly.device_id)
+        .join(DataSource, DataSource.id == Device.data_source_id)
         .where(DataSource.owner_id == current_user.id)
     )
 
@@ -40,8 +42,8 @@ async def query_anomalies(
     if query.severity:
         stmt = stmt.where(Anomaly.severity.in_(query.severity))
 
-    if query.status:
-        stmt = stmt.where(Anomaly.status.in_(query.status))
+    if query.acknowledged is not None:
+        stmt = stmt.where(Anomaly.acknowledged == query.acknowledged)
 
     if query.start_time:
         stmt = stmt.where(Anomaly.timestamp >= query.start_time)
@@ -66,9 +68,9 @@ async def get_anomaly_statistics(
     # Total count
     total_result = await db.execute(
         select(func.count(Anomaly.id))
-        .join(Metric)
-        .join(Device)
-        .join(DataSource)
+        .join(Metric, Metric.id == Anomaly.metric_id)
+        .join(Device, Device.id == Anomaly.device_id)
+        .join(DataSource, DataSource.id == Device.data_source_id)
         .where(DataSource.owner_id == current_user.id)
     )
     total = total_result.scalar() or 0
@@ -76,33 +78,32 @@ async def get_anomaly_statistics(
     # Count by severity
     severity_result = await db.execute(
         select(Anomaly.severity, func.count(Anomaly.id))
-        .join(Metric)
-        .join(Device)
-        .join(DataSource)
+        .join(Metric, Metric.id == Anomaly.metric_id)
+        .join(Device, Device.id == Anomaly.device_id)
+        .join(DataSource, DataSource.id == Device.data_source_id)
         .where(DataSource.owner_id == current_user.id)
         .group_by(Anomaly.severity)
     )
-    by_severity = {row[0].value: row[1] for row in severity_result.all()}
+    by_severity = {str(row[0]): row[1] for row in severity_result.all()}
 
-    # Count by status
-    status_result = await db.execute(
-        select(Anomaly.status, func.count(Anomaly.id))
-        .join(Metric)
-        .join(Device)
-        .join(DataSource)
+    # Count by acknowledged
+    ack_result = await db.execute(
+        select(Anomaly.acknowledged, func.count(Anomaly.id))
+        .join(Metric, Metric.id == Anomaly.metric_id)
+        .join(Device, Device.id == Anomaly.device_id)
+        .join(DataSource, DataSource.id == Device.data_source_id)
         .where(DataSource.owner_id == current_user.id)
-        .group_by(Anomaly.status)
+        .group_by(Anomaly.acknowledged)
     )
-    by_status = {row[0].value: row[1] for row in status_result.all()}
+    by_acknowledged = {str(row[0]): row[1] for row in ack_result.all()}
 
     # Recent count (last 24 hours)
-    from datetime import datetime, timedelta
     recent_time = datetime.utcnow() - timedelta(days=1)
     recent_result = await db.execute(
         select(func.count(Anomaly.id))
-        .join(Metric)
-        .join(Device)
-        .join(DataSource)
+        .join(Metric, Metric.id == Anomaly.metric_id)
+        .join(Device, Device.id == Anomaly.device_id)
+        .join(DataSource, DataSource.id == Device.data_source_id)
         .where(
             DataSource.owner_id == current_user.id,
             Anomaly.timestamp >= recent_time
@@ -113,9 +114,35 @@ async def get_anomaly_statistics(
     return AnomalyStatistics(
         total=total,
         by_severity=by_severity,
-        by_status=by_status,
+        by_acknowledged=by_acknowledged,
         recent_count=recent_count
     )
+
+
+@router.get("/recent", response_model=List[AnomalyResponse])
+async def get_recent_anomalies(
+    limit: int = 10,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get recent anomalies (last 24 hours)"""
+    recent_time = datetime.utcnow() - timedelta(days=1)
+    
+    result = await db.execute(
+        select(Anomaly)
+        .join(Metric, Metric.id == Anomaly.metric_id)
+        .join(Device, Device.id == Anomaly.device_id)
+        .join(DataSource, DataSource.id == Device.data_source_id)
+        .where(
+            DataSource.owner_id == current_user.id,
+            Anomaly.timestamp >= recent_time
+        )
+        .order_by(Anomaly.timestamp.desc())
+        .limit(limit)
+    )
+    anomalies = result.scalars().all()
+    
+    return anomalies
 
 
 @router.post("/", response_model=AnomalyResponse, status_code=status.HTTP_201_CREATED)
@@ -128,8 +155,8 @@ async def create_anomaly(
     # Verify metric ownership
     result = await db.execute(
         select(Metric)
-        .join(Device)
-        .join(DataSource)
+        .join(Device, Device.id == Metric.device_id)
+        .join(DataSource, DataSource.id == Device.data_source_id)
         .where(Metric.id == anomaly_in.metric_id, DataSource.owner_id == current_user.id)
     )
     metric = result.scalar_one_or_none()
@@ -140,7 +167,7 @@ async def create_anomaly(
             detail="Metric not found"
         )
 
-    anomaly = Anomaly(**anomaly_in.dict())
+    anomaly = Anomaly(**anomaly_in.model_dump())
     db.add(anomaly)
     await db.commit()
     await db.refresh(anomaly)
@@ -150,7 +177,7 @@ async def create_anomaly(
 
 @router.put("/{anomaly_id}", response_model=AnomalyResponse)
 async def update_anomaly(
-    anomaly_id: int,
+    anomaly_id: UUID,
     anomaly_in: AnomalyUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -158,9 +185,9 @@ async def update_anomaly(
     """Update an anomaly (e.g., acknowledge)"""
     result = await db.execute(
         select(Anomaly)
-        .join(Metric)
-        .join(Device)
-        .join(DataSource)
+        .join(Metric, Metric.id == Anomaly.metric_id)
+        .join(Device, Device.id == Anomaly.device_id)
+        .join(DataSource, DataSource.id == Device.data_source_id)
         .where(Anomaly.id == anomaly_id, DataSource.owner_id == current_user.id)
     )
     anomaly = result.scalar_one_or_none()
@@ -171,11 +198,10 @@ async def update_anomaly(
             detail="Anomaly not found"
         )
 
-    update_data = anomaly_in.dict(exclude_unset=True)
+    update_data = anomaly_in.model_dump(exclude_unset=True)
 
     # Set acknowledged timestamp if acknowledging
-    if "status" in update_data and update_data["status"] == AnomalyStatus.ACKNOWLEDGED:
-        from datetime import datetime
+    if "acknowledged" in update_data and update_data["acknowledged"]:
         anomaly.acknowledged_at = datetime.utcnow()
 
     for field, value in update_data.items():

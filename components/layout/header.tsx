@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
@@ -28,8 +29,13 @@ const navigation = [
 ];
 
 export function Header() {
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSignOut = async () => {
     await signOut({ callbackUrl: '/auth/signin' });
@@ -46,6 +52,9 @@ export function Header() {
     }
     return session?.user?.username?.[0]?.toUpperCase() || 'U';
   };
+  
+  // Only show user menu after client-side hydration
+  const showUserMenu = mounted && session;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 glass-card animate-slide-down">
@@ -101,7 +110,7 @@ export function Header() {
           <ThemeToggle />
 
           {/* User Menu */}
-          {session && (
+          {showUserMenu && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">

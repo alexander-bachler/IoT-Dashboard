@@ -7,6 +7,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime
+from uuid import UUID
 
 from app.db.database import get_db
 from app.models.user import User
@@ -37,7 +38,7 @@ async def get_current_user(
             detail="Could not validate credentials",
         )
 
-    result = await db.execute(select(User).where(User.id == int(user_id)))
+    result = await db.execute(select(User).where(User.id == UUID(user_id)))
     user = result.scalar_one_or_none()
 
     if not user:
@@ -153,7 +154,7 @@ async def refresh_token(
         )
 
     user_id = payload.get("sub")
-    result = await db.execute(select(User).where(User.id == int(user_id)))
+    result = await db.execute(select(User).where(User.id == UUID(user_id)))
     user = result.scalar_one_or_none()
 
     if not user or not user.is_active:

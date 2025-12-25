@@ -188,10 +188,20 @@ const initialEdges: Edge[] = [
   },
 ];
 
+interface TableNodeData {
+  label: string;
+  columns: Array<{ name: string; type: string; isPrimary?: boolean; isRequired?: boolean; isForeign?: boolean }>;
+  recordCount: string;
+  isHypertable?: boolean;
+}
+
 export function SchemaViewer() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+
+  // Helper to get typed data from node
+  const getNodeData = (node: Node): TableNodeData => node.data as unknown as TableNodeData;
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -249,9 +259,9 @@ export function SchemaViewer() {
         <div className="lg:col-span-1">
           {selectedNode ? (
             <Card className="p-4">
-              <h3 className="font-semibold mb-4">{selectedNode.data.label}</h3>
+              <h3 className="font-semibold mb-4">{getNodeData(selectedNode).label}</h3>
 
-              {selectedNode.data.isHypertable && (
+              {getNodeData(selectedNode).isHypertable && (
                 <div className="mb-3 px-2 py-1 bg-purple-500/20 border border-purple-500/30 rounded text-xs">
                   TimescaleDB Hypertable
                 </div>
@@ -259,12 +269,12 @@ export function SchemaViewer() {
 
               <div className="mb-4">
                 <div className="text-sm text-muted-foreground mb-1">Einträge (ca.)</div>
-                <div className="text-lg font-semibold">{selectedNode.data.recordCount}</div>
+                <div className="text-lg font-semibold">{getNodeData(selectedNode).recordCount}</div>
               </div>
 
               <div className="space-y-1">
                 <div className="text-sm font-semibold mb-2">Spalten:</div>
-                {selectedNode.data.columns.map((col: any, idx: number) => (
+                {getNodeData(selectedNode).columns.map((col, idx) => (
                   <div
                     key={idx}
                     className="text-xs p-2 bg-slate-800 rounded flex items-center justify-between"

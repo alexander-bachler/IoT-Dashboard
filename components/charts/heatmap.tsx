@@ -2,7 +2,6 @@
 
 import ReactECharts from 'echarts-for-react';
 import { useMemo } from 'react';
-import type { EChartsOption } from 'echarts';
 
 interface HeatmapDataPoint {
   x: number | string;
@@ -18,7 +17,7 @@ interface HeatmapProps {
 }
 
 export function Heatmap({ data, xAxisLabels, yAxisLabels, isLoading }: HeatmapProps) {
-  const option: EChartsOption = useMemo(() => {
+  const option = useMemo(() => {
     // Transform data to ECharts format: [x, y, value]
     const heatmapData = data.map((d) => [d.x, d.y, d.value]);
 

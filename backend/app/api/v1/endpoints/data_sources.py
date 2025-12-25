@@ -2,10 +2,11 @@
 Data Source endpoints
 CRUD operations for data sources
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from typing import List
+from typing import List, Optional
+from uuid import UUID
 
 from app.db.database import get_db
 from app.models.user import User
@@ -18,17 +19,18 @@ router = APIRouter()
 
 @router.get("/", response_model=List[DataSourceResponse])
 async def get_data_sources(
-    skip: int = 0,
-    limit: int = 50,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Get all data sources for current user"""
+    skip = (page - 1) * page_size
     result = await db.execute(
         select(DataSource)
         .where(DataSource.owner_id == current_user.id)
         .offset(skip)
-        .limit(limit)
+        .limit(page_size)
     )
     data_sources = result.scalars().all()
     return data_sources
@@ -36,7 +38,7 @@ async def get_data_sources(
 
 @router.get("/{data_source_id}", response_model=DataSourceResponse)
 async def get_data_source(
-    data_source_id: int,
+    data_source_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -79,7 +81,7 @@ async def create_data_source(
 
 @router.put("/{data_source_id}", response_model=DataSourceResponse)
 async def update_data_source(
-    data_source_id: int,
+    data_source_id: UUID,
     data_source_in: DataSourceUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -112,7 +114,7 @@ async def update_data_source(
 
 @router.delete("/{data_source_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_data_source(
-    data_source_id: int,
+    data_source_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -139,7 +141,7 @@ async def delete_data_source(
 
 @router.get("/{data_source_id}/stats", response_model=DataSourceStats)
 async def get_data_source_stats(
-    data_source_id: int,
+    data_source_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -191,7 +193,7 @@ async def get_data_source_stats(
 
 @router.post("/{data_source_id}/sync", response_model=DataSourceResponse)
 async def sync_data_source(
-    data_source_id: int,
+    data_source_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):

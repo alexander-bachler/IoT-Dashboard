@@ -2,7 +2,6 @@
 
 import ReactECharts from 'echarts-for-react';
 import { useMemo } from 'react';
-import type { EChartsOption } from 'echarts';
 
 interface GaugeChartProps {
   value: number;
@@ -27,7 +26,7 @@ export function GaugeChart({
   thresholds,
   isLoading,
 }: GaugeChartProps) {
-  const option: EChartsOption = useMemo(() => {
+  const option = useMemo(() => {
     // Determine color based on thresholds
     let color = '#3b82f6'; // Default blue
     if (thresholds) {

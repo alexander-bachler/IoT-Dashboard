@@ -6,12 +6,19 @@ import { cn } from '@/lib/utils';
 import { useWebSocketStatus } from '@/lib/hooks/use-websocket';
 
 export function StatusBar() {
+  const [mounted, setMounted] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'online' | 'offline'>('online');
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [dbStatus, setDbStatus] = useState<'healthy' | 'degraded' | 'offline'>('healthy');
 
   // WebSocket connection status
   const wsStatus = useWebSocketStatus();
+  
+  // Set mounted state and initial time on client
+  useEffect(() => {
+    setMounted(true);
+    setLastUpdated(new Date());
+  }, []);
 
   // Monitor connection status
   useEffect(() => {
@@ -154,8 +161,8 @@ export function StatusBar() {
         {/* Right side - Timestamp */}
         <div className="flex items-center gap-2">
           <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-muted-foreground font-mono">
-            {formatDate(lastUpdated)} {formatTime(lastUpdated)}
+          <span className="text-muted-foreground font-mono" suppressHydrationWarning>
+            {mounted && lastUpdated ? `${formatDate(lastUpdated)} ${formatTime(lastUpdated)}` : '--.--.---- --:--'}
           </span>
         </div>
       </div>

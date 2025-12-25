@@ -42,6 +42,14 @@ const nodeTypes = {
   transform: TransformNode,
 };
 
+interface ETLNodeData {
+  label: string;
+  type: string;
+  config: Record<string, unknown>;
+  status: string;
+  rowCount: number;
+}
+
 const initialNodes: Node[] = [
   {
     id: '1',
@@ -182,6 +190,9 @@ export function ETLDesigner() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+
+  // Helper to get typed data from node
+  const getNodeData = (node: Node): ETLNodeData => node.data as unknown as ETLNodeData;
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -325,7 +336,7 @@ export function ETLDesigner() {
           {selectedNode ? (
             <Card className="p-4">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold">{selectedNode.data.type}</h3>
+                <h3 className="font-semibold">{getNodeData(selectedNode).type}</h3>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -341,7 +352,7 @@ export function ETLDesigner() {
               <div className="space-y-3">
                 <div>
                   <div className="text-sm text-muted-foreground mb-1">Label</div>
-                  <div className="text-sm font-medium">{selectedNode.data.label}</div>
+                  <div className="text-sm font-medium">{getNodeData(selectedNode).label}</div>
                 </div>
 
                 <div>
@@ -349,28 +360,28 @@ export function ETLDesigner() {
                   <div className="flex items-center gap-2">
                     <div
                       className={`h-2 w-2 rounded-full ${
-                        selectedNode.data.status === 'ready'
+                        getNodeData(selectedNode).status === 'ready'
                           ? 'bg-green-500'
-                          : selectedNode.data.status === 'running'
+                          : getNodeData(selectedNode).status === 'running'
                             ? 'bg-yellow-500'
                             : 'bg-slate-500'
                       }`}
                     />
-                    <span className="text-sm capitalize">{selectedNode.data.status}</span>
+                    <span className="text-sm capitalize">{getNodeData(selectedNode).status}</span>
                   </div>
                 </div>
 
                 <div>
                   <div className="text-sm text-muted-foreground mb-1">Zeilen</div>
                   <div className="text-lg font-semibold">
-                    {selectedNode.data.rowCount?.toLocaleString()}
+                    {getNodeData(selectedNode).rowCount?.toLocaleString()}
                   </div>
                 </div>
 
                 <div>
                   <div className="text-sm text-muted-foreground mb-2">Konfiguration</div>
                   <div className="space-y-2">
-                    {Object.entries(selectedNode.data.config || {}).map(([key, value]) => (
+                    {Object.entries(getNodeData(selectedNode).config || {}).map(([key, value]) => (
                       <div key={key} className="text-xs">
                         <div className="text-muted-foreground mb-1">{key}:</div>
                         <div className="font-mono bg-slate-800 p-2 rounded">
@@ -396,8 +407,8 @@ export function ETLDesigner() {
       {selectedNode && (
         <DataPreviewPanel
           nodeId={selectedNode.id}
-          nodeLabel={selectedNode.data.label}
-          rowsProcessed={selectedNode.data.rowCount || 0}
+          nodeLabel={getNodeData(selectedNode).label}
+          rowsProcessed={getNodeData(selectedNode).rowCount || 0}
         />
       )}
 

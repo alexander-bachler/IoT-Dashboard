@@ -1,5 +1,8 @@
 import apiClient from '../client';
+import { API_ENDPOINTS } from '../config';
 import type { Anomaly, AnomalyQueryParams, UpdateAnomalyDto, PaginatedResponse } from '../types';
+
+const BASE_PATH = '/api/v1/anomalies';
 
 // ============================================
 // Anomalies API Functions
@@ -10,7 +13,7 @@ export const anomaliesApi = {
    * Get all anomalies with filtering and pagination
    */
   getAll: async (params?: AnomalyQueryParams): Promise<PaginatedResponse<Anomaly>> => {
-    const response = await apiClient.get<PaginatedResponse<Anomaly>>('/anomalies', {
+    const response = await apiClient.get<PaginatedResponse<Anomaly>>(BASE_PATH, {
       params: {
         ...params,
         metric_ids: params?.metric_ids?.join(','),
@@ -26,7 +29,7 @@ export const anomaliesApi = {
    * Get a single anomaly by ID
    */
   getById: async (id: string): Promise<Anomaly> => {
-    const response = await apiClient.get<Anomaly>(`/anomalies/${id}`);
+    const response = await apiClient.get<Anomaly>(`${BASE_PATH}/${id}`);
     return response.data;
   },
 
@@ -34,7 +37,7 @@ export const anomaliesApi = {
    * Update anomaly status (acknowledge, resolve, etc.)
    */
   update: async (id: string, data: UpdateAnomalyDto): Promise<Anomaly> => {
-    const response = await apiClient.patch<Anomaly>(`/anomalies/${id}`, data);
+    const response = await apiClient.patch<Anomaly>(`${BASE_PATH}/${id}`, data);
     return response.data;
   },
 
@@ -42,7 +45,7 @@ export const anomaliesApi = {
    * Bulk update anomaly status
    */
   bulkUpdate: async (ids: string[], data: UpdateAnomalyDto): Promise<{ count: number }> => {
-    const response = await apiClient.patch<{ count: number }>('/anomalies/bulk', {
+    const response = await apiClient.patch<{ count: number }>(`${BASE_PATH}/bulk`, {
       ids,
       ...data,
     });
@@ -53,7 +56,7 @@ export const anomaliesApi = {
    * Delete an anomaly (mark as false positive)
    */
   delete: async (id: string): Promise<void> => {
-    await apiClient.delete(`/anomalies/${id}`);
+    await apiClient.delete(`${BASE_PATH}/${id}`);
   },
 
   /**
@@ -68,7 +71,7 @@ export const anomaliesApi = {
     by_status: Record<string, number>;
     trend: Array<{ date: string; count: number }>;
   }> => {
-    const response = await apiClient.get('/anomalies/statistics', { params });
+    const response = await apiClient.get(`${BASE_PATH}/statistics`, { params });
     return response.data;
   },
 
@@ -76,7 +79,7 @@ export const anomaliesApi = {
    * Get recent anomalies (last 24h)
    */
   getRecent: async (limit: number = 10): Promise<Anomaly[]> => {
-    const response = await apiClient.get<Anomaly[]>('/anomalies/recent', {
+    const response = await apiClient.get<Anomaly[]>(`${BASE_PATH}/recent`, {
       params: { limit },
     });
     return response.data;
@@ -87,7 +90,7 @@ export const anomaliesApi = {
    */
   triggerDetection: async (metricIds: string[]): Promise<{ success: boolean; message: string }> => {
     const response = await apiClient.post<{ success: boolean; message: string }>(
-      '/anomalies/detect',
+      `${BASE_PATH}/detect`,
       {
         metric_ids: metricIds,
       }

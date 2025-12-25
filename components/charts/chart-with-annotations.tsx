@@ -2,7 +2,6 @@
 
 import ReactECharts from 'echarts-for-react';
 import { useMemo, useEffect, useState } from 'react';
-import type { EChartsOption } from 'echarts';
 import { getChartToolbox, getDataZoom } from '@/lib/utils/chart-toolbox';
 
 interface Annotation {
@@ -67,7 +66,7 @@ export function ChartWithAnnotations({
     fetchAnnotations();
   }, [showAnnotations, timeRange]);
 
-  const option: EChartsOption = useMemo(() => {
+  const option = useMemo(() => {
     const seriesData = series.map((s) => {
       const baseConfig = {
         name: s.metricName,
@@ -76,7 +75,7 @@ export function ChartWithAnnotations({
         smooth: chartType === 'line' || chartType === 'area',
         areaStyle: chartType === 'area' ? {} : undefined,
         emphasis: {
-          focus: 'series',
+          focus: 'series' as const,
         },
       };
 

@@ -2,8 +2,6 @@
 
 import ReactECharts from 'echarts-for-react';
 import { useMemo } from 'react';
-import type { EChartsOption } from 'echarts';
-import * as echarts from 'echarts/core';
 
 interface BoxplotDataPoint {
   name: string;
@@ -15,14 +13,69 @@ interface BoxplotProps {
   isLoading?: boolean;
 }
 
+/**
+ * Calculate boxplot statistics for a single dataset
+ */
+function calculateBoxplotStats(data: number[]): [number, number, number, number, number] {
+  if (data.length === 0) return [0, 0, 0, 0, 0];
+  
+  const sorted = [...data].sort((a, b) => a - b);
+  const n = sorted.length;
+  
+  const min = sorted[0];
+  const max = sorted[n - 1];
+  const median = n % 2 === 0 
+    ? (sorted[n / 2 - 1] + sorted[n / 2]) / 2 
+    : sorted[Math.floor(n / 2)];
+  
+  const q1Index = Math.floor(n / 4);
+  const q3Index = Math.floor(3 * n / 4);
+  const q1 = sorted[q1Index];
+  const q3 = sorted[q3Index];
+  
+  return [min, q1, median, q3, max];
+}
+
+/**
+ * Find outliers using IQR method
+ */
+function findOutliers(data: number[], categoryIndex: number): [number, number][] {
+  if (data.length === 0) return [];
+  
+  const sorted = [...data].sort((a, b) => a - b);
+  const n = sorted.length;
+  
+  const q1Index = Math.floor(n / 4);
+  const q3Index = Math.floor(3 * n / 4);
+  const q1 = sorted[q1Index];
+  const q3 = sorted[q3Index];
+  const iqr = q3 - q1;
+  
+  const lowerBound = q1 - 1.5 * iqr;
+  const upperBound = q3 + 1.5 * iqr;
+  
+  return data
+    .filter(val => val < lowerBound || val > upperBound)
+    .map(val => [categoryIndex, val]);
+}
+
+/**
+ * Prepare boxplot data from raw data arrays
+ */
+function prepareBoxplotData(rawData: number[][]) {
+  const boxData = rawData.map(calculateBoxplotStats);
+  const outliers = rawData.flatMap((data, index) => findOutliers(data, index));
+  return { boxData, outliers };
+}
+
 export function Boxplot({ data, isLoading }: BoxplotProps) {
-  const option: EChartsOption = useMemo(() => {
+  const option = useMemo(() => {
     // Transform data for boxplot
     const categories = data.map((d) => d.name);
     const rawData = data.map((d) => d.data);
 
     // Calculate boxplot statistics
-    const boxplotData = echarts.dataTool.prepareBoxplotData(rawData);
+    const boxplotData = prepareBoxplotData(rawData);
 
     return {
       backgroundColor: 'transparent',

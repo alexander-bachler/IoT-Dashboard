@@ -4,15 +4,17 @@ Pydantic schemas for Measurement endpoints
 from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional, List, Dict, Any, Literal
+from uuid import UUID
 
 
 class MeasurementCreate(BaseModel):
     """Schema for creating a measurement"""
-    metric_id: int
-    timestamp: datetime
+    metric_id: UUID
+    device_id: UUID
+    time: datetime
     value: float
-    quality: Optional[float] = Field(None, ge=0, le=1)
-    tags: Optional[Dict[str, Any]] = None
+    quality: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
 
 
 class MeasurementBatchCreate(BaseModel):
@@ -22,12 +24,12 @@ class MeasurementBatchCreate(BaseModel):
 
 class MeasurementResponse(BaseModel):
     """Schema for measurement response"""
-    id: int
-    metric_id: int
-    timestamp: datetime
+    time: datetime
+    metric_id: UUID
+    device_id: UUID
     value: float
-    quality: Optional[float] = None
-    tags: Optional[Dict[str, Any]] = None
+    quality: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
 
     class Config:
         from_attributes = True
@@ -35,7 +37,7 @@ class MeasurementResponse(BaseModel):
 
 class TimeSeriesQuery(BaseModel):
     """Schema for time-series query"""
-    metric_ids: List[int]
+    metric_ids: List[UUID]
     start_time: datetime
     end_time: datetime
     interval: Optional[str] = None  # e.g., "1h", "15m", "1d"
@@ -47,12 +49,12 @@ class TimeSeriesDataPoint(BaseModel):
     """Single time-series data point"""
     time: str
     value: float
-    quality: Optional[float] = None
+    quality: Optional[str] = None
 
 
 class TimeSeriesData(BaseModel):
     """Time-series data for a metric"""
-    metric_id: int
+    metric_id: UUID
     metric_name: str
     metric_unit: Optional[str] = None
     data: List[TimeSeriesDataPoint]

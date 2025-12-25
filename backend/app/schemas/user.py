@@ -4,6 +4,7 @@ Pydantic schemas for User endpoints
 from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 from typing import Optional
+from uuid import UUID
 from app.models.user import UserRole
 
 
@@ -28,7 +29,7 @@ class UserUpdate(BaseModel):
 
 class UserResponse(UserBase):
     """Schema for user response"""
-    id: int
+    id: UUID
     role: UserRole
     is_active: bool
     is_verified: bool
@@ -48,6 +49,6 @@ class Token(BaseModel):
 
 class TokenPayload(BaseModel):
     """Token payload schema"""
-    sub: int
+    sub: str  # UUID as string
     exp: datetime
     type: str

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { anomalies, metrics, devices } from '@/db/schema';
+import { metrics, devices } from '@/db/schema';
+import { anomalies } from '@/db/schema-quality';
 import { eq, and, gte, lte, desc } from 'drizzle-orm';
 import { detectAnomalies } from '@/lib/services/anomaly-detection';
 import { withRateLimit, RateLimitPresets } from '@/lib/utils/rate-limiter';

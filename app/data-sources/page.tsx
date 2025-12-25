@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,9 +22,14 @@ import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { Badge } from '@/components/ui/badge';
 
 function DataSourceCard({ source }: { source: any }) {
+  const [mounted, setMounted] = useState(false);
   const { mutate: syncData, isPending: isSyncing } = useSyncDataSource();
   const { mutate: deleteSource, isPending: isDeleting } = useDeleteDataSource();
   const { data: stats } = useDataSourceStats(source.id);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSync = () => {
     syncData(source.id);
@@ -91,8 +96,8 @@ function DataSourceCard({ source }: { source: any }) {
         {/* Last Sync */}
         <div>
           <p className="text-xs text-muted-foreground mb-1">Last Sync</p>
-          <p className="text-sm">
-            {source.last_sync ? format(new Date(source.last_sync), 'PPp') : 'Never'}
+          <p className="text-sm" suppressHydrationWarning>
+            {mounted && source.last_sync ? format(new Date(source.last_sync), 'PPp') : (source.last_sync ? '...' : 'Never')}
           </p>
         </div>
 
@@ -284,9 +289,72 @@ function DataSourcesContent() {
   );
 }
 
+function StatsCards({ dataSources }: { dataSources: any[] }) {
+  if (!dataSources || dataSources.length === 0) return null;
+  
+  const activeCount = dataSources.filter((s) => s?.status === 'active').length;
+  const errorCount = dataSources.filter((s) => s?.status === 'error').length;
+  const totalDevices = dataSources.reduce((acc, s) => acc + (s?.device_count || 0), 0);
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="metric-card hover-scale">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-blue-500/20">
+            <Database className="h-5 w-5 text-blue-500" />
+          </div>
+          <div>
+            <div className="text-sm text-muted-foreground">Total Sources</div>
+            <div className="text-2xl font-bold gradient-text">{dataSources.length}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="metric-card hover-scale">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-green-500/20">
+            <Activity className="h-5 w-5 text-green-500" />
+          </div>
+          <div>
+            <div className="text-sm text-muted-foreground">Active</div>
+            <div className="text-2xl font-bold gradient-text">{activeCount}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="metric-card hover-scale">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-red-500/20">
+            <XCircle className="h-5 w-5 text-red-500" />
+          </div>
+          <div>
+            <div className="text-sm text-muted-foreground">Errors</div>
+            <div className="text-2xl font-bold gradient-text">{errorCount}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="metric-card hover-scale">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-purple-500/20">
+            <TrendingUp className="h-5 w-5 text-purple-500" />
+          </div>
+          <div>
+            <div className="text-sm text-muted-foreground">Total Devices</div>
+            <div className="text-2xl font-bold gradient-text">{totalDevices}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DataSourcesPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const { data } = useDataSources({ page: 1, page_size: 50 });
+  
+  // Safely extract data sources array
+  const dataSources = data?.data ?? [];
 
   return (
     <ErrorBoundary>
@@ -310,63 +378,7 @@ export default function DataSourcesPage() {
         </div>
 
         {/* Stats Cards */}
-        {data && data.data.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="metric-card hover-scale">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-500/20">
-                  <Database className="h-5 w-5 text-blue-500" />
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Total Sources</div>
-                  <div className="text-2xl font-bold gradient-text">{data.total}</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="metric-card hover-scale">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-green-500/20">
-                  <Activity className="h-5 w-5 text-green-500" />
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Active</div>
-                  <div className="text-2xl font-bold gradient-text">
-                    {data.data.filter((s) => s.status === 'active').length}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="metric-card hover-scale">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-red-500/20">
-                  <XCircle className="h-5 w-5 text-red-500" />
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Errors</div>
-                  <div className="text-2xl font-bold gradient-text">
-                    {data.data.filter((s) => s.status === 'error').length}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="metric-card hover-scale">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-purple-500/20">
-                  <TrendingUp className="h-5 w-5 text-purple-500" />
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Total Devices</div>
-                  <div className="text-2xl font-bold gradient-text">
-                    {data.data.reduce((acc, s) => acc + (s.device_count || 0), 0)}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <StatsCards dataSources={dataSources} />
 
         {/* Data Sources List */}
         <DataSourcesContent />

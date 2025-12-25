@@ -1,4 +1,5 @@
 import apiClient from '../client';
+import { API_ENDPOINTS } from '../config';
 import type {
   DataSource,
   CreateDataSourceDto,
@@ -16,7 +17,7 @@ export const dataSourcesApi = {
    * Get all data sources with pagination
    */
   getAll: async (params?: PaginationParams): Promise<PaginatedResponse<DataSource>> => {
-    const response = await apiClient.get<PaginatedResponse<DataSource>>('/data-sources', {
+    const response = await apiClient.get<PaginatedResponse<DataSource>>(API_ENDPOINTS.dataSources.list, {
       params,
     });
     return response.data;
@@ -26,7 +27,7 @@ export const dataSourcesApi = {
    * Get a single data source by ID
    */
   getById: async (id: string): Promise<DataSource> => {
-    const response = await apiClient.get<DataSource>(`/data-sources/${id}`);
+    const response = await apiClient.get<DataSource>(`${API_ENDPOINTS.dataSources.list}/${id}`);
     return response.data;
   },
 
@@ -34,7 +35,7 @@ export const dataSourcesApi = {
    * Create a new data source
    */
   create: async (data: CreateDataSourceDto): Promise<DataSource> => {
-    const response = await apiClient.post<DataSource>('/data-sources', data);
+    const response = await apiClient.post<DataSource>(API_ENDPOINTS.dataSources.create, data);
     return response.data;
   },
 
@@ -42,7 +43,7 @@ export const dataSourcesApi = {
    * Update an existing data source
    */
   update: async (id: string, data: UpdateDataSourceDto): Promise<DataSource> => {
-    const response = await apiClient.patch<DataSource>(`/data-sources/${id}`, data);
+    const response = await apiClient.patch<DataSource>(`${API_ENDPOINTS.dataSources.list}/${id}`, data);
     return response.data;
   },
 
@@ -50,7 +51,7 @@ export const dataSourcesApi = {
    * Delete a data source
    */
   delete: async (id: string): Promise<void> => {
-    await apiClient.delete(`/data-sources/${id}`);
+    await apiClient.delete(`${API_ENDPOINTS.dataSources.list}/${id}`);
   },
 
   /**
@@ -58,7 +59,7 @@ export const dataSourcesApi = {
    */
   testConnection: async (id: string): Promise<{ success: boolean; message: string }> => {
     const response = await apiClient.post<{ success: boolean; message: string }>(
-      `/data-sources/${id}/test-connection`
+      `${API_ENDPOINTS.dataSources.list}/${id}/test-connection`
     );
     return response.data;
   },
@@ -68,7 +69,7 @@ export const dataSourcesApi = {
    */
   syncData: async (id: string): Promise<{ success: boolean; message: string }> => {
     const response = await apiClient.post<{ success: boolean; message: string }>(
-      `/data-sources/${id}/sync`
+      `${API_ENDPOINTS.dataSources.list}/${id}/sync`
     );
     return response.data;
   },
@@ -82,7 +83,7 @@ export const dataSourcesApi = {
     measurement_count: number;
     last_measurement: string;
   }> => {
-    const response = await apiClient.get(`/data-sources/${id}/stats`);
+    const response = await apiClient.get(`${API_ENDPOINTS.dataSources.list}/${id}/stats`);
     return response.data;
   },
 };

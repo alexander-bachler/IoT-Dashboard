@@ -11,7 +11,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
       POSTGRES_HOST_AUTH_METHOD: scram-sha-256
     ports:
-      - "5432:5432"
+      - "15432:5432"  # Using 15432 to avoid conflict with local PostgreSQL
     volumes:
       - timescaledb_data:/var/lib/postgresql/data
       # Auto-run init scripts
@@ -33,6 +33,11 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-postgres}@timescaledb:5432/iot_dashboard
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-super-secret-key-change-in-production}
+      NEXTAUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      # Internal Docker network URL for server-side auth
+      AUTH_API_URL: http://backend:8000
     ports:
       - "3000:3000"
     depends_on:
@@ -40,12 +45,7 @@ services:
         condition: service_healthy
     networks:
       - iot-network
-    volumes:
-      # For development: mount source code
-      - .:/app
-      - /app/node_modules
-      - /app/.next
-    command: npm run dev
+    # Production mode: uses CMD from Dockerfile (node server.js)
 
   # Redis (for caching and real-time)
   redis:
@@ -73,7 +73,7 @@ services:
       - DATABASE_URL=postgresql+asyncpg://postgres:${DB_PASSWORD:-postgres}@timescaledb:5432/iot_dashboard
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY:-change-this-secret-key-in-production}
-      - CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001
     ports:
       - "8000:8000"
     depends_on:

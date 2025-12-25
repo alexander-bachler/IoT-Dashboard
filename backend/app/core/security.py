@@ -3,9 +3,10 @@ Security utilities for authentication and authorization
 JWT token handling, password hashing, etc.
 """
 from datetime import datetime, timedelta
-from typing import Optional, Union
+from typing import Optional, Union, Any
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from uuid import UUID
 
 from app.core.config import settings
 
@@ -24,7 +25,7 @@ def get_password_hash(password: str) -> str:
 
 
 def create_access_token(
-    subject: Union[str, int],
+    subject: Union[str, int, UUID],
     expires_delta: Optional[timedelta] = None
 ) -> str:
     """Create a JWT access token"""
@@ -49,7 +50,7 @@ def create_access_token(
 
 
 def create_refresh_token(
-    subject: Union[str, int],
+    subject: Union[str, int, UUID],
     expires_delta: Optional[timedelta] = None
 ) -> str:
     """Create a JWT refresh token"""

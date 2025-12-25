@@ -27,12 +27,15 @@ interface Series {
 }
 
 function MetricStatsCard({ series }: { series: Series }) {
-  const values = series.data.map((d) => d.value);
-  const latest = values[values.length - 1];
+  const data = series?.data ?? [];
+  if (data.length === 0) return null;
+  
+  const values = data.map((d) => d.value);
+  const latest = values[values.length - 1] ?? 0;
   const previous = values[values.length - 2];
-  const avg = values.reduce((a, b) => a + b, 0) / values.length;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  const avg = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+  const min = values.length > 0 ? Math.min(...values) : 0;
+  const max = values.length > 0 ? Math.max(...values) : 0;
 
   const trend = previous ? ((latest - previous) / previous) * 100 : 0;
   const isPositive = trend >= 0;

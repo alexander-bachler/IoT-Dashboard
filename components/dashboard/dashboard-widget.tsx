@@ -121,7 +121,11 @@ export function DashboardWidget({
         <div className="h-full">
           <TimeSeriesChart
             series={series}
-            chartType={widget.chartType}
+            chartType={
+              ['line', 'bar', 'area', 'scatter'].includes(widget.chartType)
+                ? (widget.chartType as 'line' | 'bar' | 'area' | 'scatter')
+                : 'line'
+            }
             isLoading={isLoading}
           />
         </div>

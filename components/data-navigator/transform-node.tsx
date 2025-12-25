@@ -31,7 +31,16 @@ const colorMap: Record<string, string> = {
   transform: 'from-slate-600 to-slate-700',
 };
 
-export const TransformNode = memo(({ data }: NodeProps) => {
+interface TransformNodeData {
+  label: string;
+  type: string;
+  config: Record<string, unknown>;
+  status: string;
+  rowCount?: number;
+}
+
+export const TransformNode = memo(({ data: rawData }: NodeProps) => {
+  const data = rawData as unknown as TransformNodeData;
   const Icon = iconMap[data.type] || Settings;
   const colorClass = colorMap[data.type] || 'from-slate-600 to-slate-700';
 

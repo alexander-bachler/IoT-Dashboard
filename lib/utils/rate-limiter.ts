@@ -4,6 +4,8 @@
  * For production, consider using Redis or a dedicated service
  */
 
+import type { NextRequest } from 'next/server';
+
 interface RateLimitEntry {
   count: number;
   resetTime: number;
@@ -14,7 +16,7 @@ const rateLimitStore = new Map<string, RateLimitEntry>();
 export interface RateLimitConfig {
   maxRequests: number; // Maximum requests allowed in the window
   windowMs: number; // Time window in milliseconds
-  keyGenerator?: (req: Request) => string; // Custom key generator
+  keyGenerator?: (req: Request | NextRequest) => string; // Custom key generator
 }
 
 export interface RateLimitResult {
@@ -93,14 +95,14 @@ export function checkRateLimit(
 /**
  * Rate limiter middleware for Next.js API routes
  */
-export function withRateLimit(
-  handler: (req: Request) => Promise<Response>,
+export function withRateLimit<T extends Request | NextRequest>(
+  handler: (req: T) => Promise<Response>,
   config: RateLimitConfig = {
     maxRequests: 100,
     windowMs: 60000, // 1 minute
   }
 ) {
-  return async (req: Request): Promise<Response> => {
+  return async (req: T): Promise<Response> => {
     const result = checkRateLimit(req, config);
 
     // Add rate limit headers

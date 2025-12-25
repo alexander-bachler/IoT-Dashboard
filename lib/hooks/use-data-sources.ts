@@ -21,11 +21,12 @@ export const dataSourceKeys = {
 /**
  * Hook to fetch all data sources with pagination
  */
-export function useDataSources(params?: PaginationParams) {
+export function useDataSources(params?: PaginationParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: dataSourceKeys.list(params),
     queryFn: () => dataSourcesApi.getAll(params),
     staleTime: 30 * 1000, // 30 seconds
+    enabled: options?.enabled ?? true,
   });
 }
 
