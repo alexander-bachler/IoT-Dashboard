@@ -43,7 +43,11 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder
+     * - fonts
+     * - images
+     * - .well-known (for security.txt, etc.)
+     * - *.svg, *.png, *.jpg, *.jpeg, *.gif, *.webp (image files)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|public).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|public|fonts|images|.*\\.svg$|.*\\.png$|.*\\.jpg$|.*\\.jpeg$|.*\\.gif$|.*\\.webp$|\\.well-known).*)',
   ],
 };
