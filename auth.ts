@@ -1,10 +1,10 @@
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import type { NextAuthConfig } from 'next-auth';
+import type { NextAuthOptions } from 'next-auth';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-export const authConfig: NextAuthConfig = {
+export const authConfig: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       name: 'Credentials',
@@ -67,7 +67,7 @@ export const authConfig: NextAuthConfig = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user }: any) {
       // Initial sign in
       if (user) {
         token.accessToken = user.accessToken;
@@ -78,7 +78,7 @@ export const authConfig: NextAuthConfig = {
 
       return token;
     },
-    async session({ session, token }) {
+    async session({ session, token }: any) {
       // Send properties to the client
       session.user.id = token.sub!;
       session.user.username = token.username as string;

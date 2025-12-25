@@ -21,12 +21,20 @@ class WebSocketClient {
   private handlers: Map<string, Set<WebSocketEventHandler>> = new Map();
   private statusCallbacks: Set<(status: ConnectionStatus) => void> = new Set();
   private currentStatus: ConnectionStatus = 'disconnected';
+  private getToken: (() => string | null) | null = null;
 
   constructor() {
     // Use environment variable or default to localhost WebSocket endpoint
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsHost = process.env.NEXT_PUBLIC_WS_URL || `${wsProtocol}//${window.location.host}/ws`;
     this.url = wsHost;
+  }
+
+  /**
+   * Set token getter function for authentication
+   */
+  setTokenGetter(getter: () => string | null) {
+    this.getToken = getter;
   }
 
   /**
@@ -39,10 +47,19 @@ class WebSocketClient {
     }
 
     this.setStatus('connecting');
+
+    // Build WebSocket URL with authentication token
+    let wsUrl = this.url;
+    const token = this.getToken?.();
+    if (token) {
+      const separator = wsUrl.includes('?') ? '&' : '?';
+      wsUrl = `${wsUrl}${separator}token=${encodeURIComponent(token)}`;
+    }
+
     console.log(`[WebSocket] Connecting to ${this.url}...`);
 
     try {
-      this.ws = new WebSocket(this.url);
+      this.ws = new WebSocket(wsUrl);
 
       this.ws.onopen = () => {
         console.log('[WebSocket] Connected');

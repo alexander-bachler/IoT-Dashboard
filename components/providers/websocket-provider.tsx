@@ -1,11 +1,21 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { useWebSocketConnection, useLiveAnomalies } from '@/lib/hooks/use-websocket';
+import { getWebSocketClient } from '@/lib/websocket/client';
 import { toast } from 'sonner';
 import { AlertTriangle } from 'lucide-react';
 
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
+  const { data: session } = useSession();
+  const ws = getWebSocketClient();
+
+  // Set authentication token for WebSocket
+  useEffect(() => {
+    ws.setTokenGetter(() => session?.accessToken || null);
+  }, [session, ws]);
+
   // Auto-connect to WebSocket
   const { status, isConnected } = useWebSocketConnection();
 

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DashboardGrid } from '@/components/dashboard/dashboard-grid';
+import { DashboardManager } from '@/components/dashboard/dashboard-manager';
 import { AddWidgetDialog } from '@/components/dashboard/add-widget-dialog';
 import { TemplateSelector } from '@/components/dashboard/template-selector';
 import { useDashboardStore } from '@/lib/stores/dashboard-store';
@@ -17,12 +18,25 @@ export default function DashboardsPage() {
   const handleApplyTemplate = (template: DashboardTemplate) => {
     // Convert template widgets to dashboard widgets
     template.widgets.forEach((widget) => {
-      addWidget({
-        title: widget.title,
-        chartType: widget.chartType,
-        metricIds: [],
-        layout: widget.layout,
-      });
+      addWidget(
+        {
+          id: widget.id,
+          title: widget.title,
+          chartType: widget.chartType,
+          deviceId: '',
+          metricIds: [],
+          timeRange: { type: 'relative', value: 'last_24h' },
+        },
+        {
+          i: widget.id,
+          x: widget.layout.x,
+          y: widget.layout.y,
+          w: widget.layout.w,
+          h: widget.layout.h,
+          minW: 3,
+          minH: 3,
+        }
+      );
     });
   };
 
@@ -36,28 +50,32 @@ export default function DashboardsPage() {
               Monitor your IoT metrics in real-time
             </p>
           </div>
-          <div className="flex gap-2">
-            <TemplateSelector onSelectTemplate={handleApplyTemplate} />
-            <Button
-              variant={isEditMode ? 'default' : 'outline'}
-              onClick={() => setEditMode(!isEditMode)}
-            >
-              {isEditMode ? (
-                <>
-                  <Eye className="mr-2 h-4 w-4" />
-                  View Mode
-                </>
-              ) : (
-                <>
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit Mode
-                </>
-              )}
-            </Button>
-            <Button onClick={() => setIsAddWidgetOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Widget
-            </Button>
+          <div className="flex gap-4">
+            <DashboardManager />
+            <div className="h-8 w-px bg-border" />
+            <div className="flex gap-2">
+              <TemplateSelector onSelectTemplate={handleApplyTemplate} />
+              <Button
+                variant={isEditMode ? 'default' : 'outline'}
+                onClick={() => setEditMode(!isEditMode)}
+              >
+                {isEditMode ? (
+                  <>
+                    <Eye className="mr-2 h-4 w-4" />
+                    View Mode
+                  </>
+                ) : (
+                  <>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit Mode
+                  </>
+                )}
+              </Button>
+              <Button onClick={() => setIsAddWidgetOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Widget
+              </Button>
+            </div>
           </div>
         </div>
 
