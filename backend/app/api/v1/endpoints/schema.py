@@ -126,7 +126,9 @@ async def get_schema_nodes(
 
     # Add data source nodes dynamically
     datasource_nodes = []
-    y_offset = 100
+    # Start DataSource nodes to the left of devices, offset vertically
+    datasource_x = 100
+    datasource_y_start = 250  # Below data_sources_table
     for idx, ds in enumerate(data_sources):
         # Get stats for this data source
         device_count_result = await db.execute(
@@ -144,7 +146,7 @@ async def get_schema_nodes(
         datasource_nodes.append({
             "id": f"datasource_{ds.id}",
             "type": "table",
-            "position": {"x": 100, "y": y_offset + (idx * 150)},
+            "position": {"x": datasource_x, "y": datasource_y_start + (idx * 180)},
             "data": {
                 "label": f"DataSource: {ds.name}",
                 "columns": [

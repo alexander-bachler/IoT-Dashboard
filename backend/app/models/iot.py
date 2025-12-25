@@ -17,6 +17,7 @@ class DataSourceType(str, enum.Enum):
     MQTT = "mqtt"
     DATABASE = "database"
     FILE = "file"
+    LINEMETRICS = "linemetrics"
 
 
 class DataSource(Base):
