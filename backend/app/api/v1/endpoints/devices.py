@@ -9,8 +9,8 @@ from typing import List
 
 from app.db.database import get_db
 from app.models.user import User
-from app.models.iot import Device, DataSource
-from app.schemas.device import DeviceCreate, DeviceUpdate, DeviceResponse
+from app.models.iot import Device, DataSource, Metric
+from app.schemas.device import DeviceCreate, DeviceUpdate, DeviceResponse, MetricResponse
 from app.api.v1.endpoints.auth import get_current_user
 
 router = APIRouter()
@@ -58,6 +58,36 @@ async def get_device(
         )
 
     return device
+
+
+@router.get("/{device_id}/metrics", response_model=List[MetricResponse])
+async def get_device_metrics(
+    device_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all metrics for a specific device"""
+    # Verify device ownership
+    result = await db.execute(
+        select(Device)
+        .join(DataSource)
+        .where(Device.id == device_id, DataSource.owner_id == current_user.id)
+    )
+    device = result.scalar_one_or_none()
+
+    if not device:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Device not found"
+        )
+
+    # Get metrics for this device
+    metrics_result = await db.execute(
+        select(Metric).where(Metric.device_id == device_id)
+    )
+    metrics = metrics_result.scalars().all()
+
+    return metrics
 
 
 @router.post("/", response_model=DeviceResponse, status_code=status.HTTP_201_CREATED)

@@ -36,10 +36,6 @@ export function DashboardGrid() {
             widget={widget}
             isEditMode={isEditMode}
             onRemove={() => removeWidget(widget.id)}
-            onConfigure={() => {
-              // TODO: Open widget configuration dialog
-              console.log('Configure widget:', widget.id);
-            }}
           />
         </div>
       ))}
