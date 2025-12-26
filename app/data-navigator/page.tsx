@@ -5,10 +5,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SchemaViewer } from '@/components/data-navigator/schema-viewer';
 import { ETLDesigner } from '@/components/data-navigator/etl-designer';
 import { MetadataEditor } from '@/components/data-navigator/metadata-editor';
-import { Database, Workflow, Settings, Sparkles } from 'lucide-react';
+import { DataSourceManager } from '@/components/data-navigator/datasource-manager';
+import { Database, Workflow, Settings, Sparkles, Server } from 'lucide-react';
 
 export default function DataNavigatorPage() {
-  const [activeTab, setActiveTab] = useState('schema');
+  const [activeTab, setActiveTab] = useState('datasources');
 
   return (
     <div className="container mx-auto p-6 space-y-6 animate-fade-in">
@@ -25,14 +26,21 @@ export default function DataNavigatorPage() {
             <h1 className="section-header mb-0">Data Navigator</h1>
           </div>
           <p className="text-muted-foreground">
-            Visualisieren Sie Datenbeziehungen, designen Sie ETL-Prozesse und bearbeiten Sie Metadaten
+            Verwalten Sie Datenquellen, visualisieren Sie Beziehungen, designen Sie ETL-Prozesse und bearbeiten Sie Metadaten
           </p>
         </div>
       </div>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-2xl grid-cols-3 h-auto p-1 glass-card">
+        <TabsList className="grid w-full max-w-3xl grid-cols-4 h-auto p-1 glass-card">
+          <TabsTrigger
+            value="datasources"
+            className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500/20 data-[state=active]:to-purple-600/20 data-[state=active]:shadow-glow-sm py-3"
+          >
+            <Server className="h-4 w-4" />
+            <span>Data Sources</span>
+          </TabsTrigger>
           <TabsTrigger
             value="schema"
             className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500/20 data-[state=active]:to-purple-600/20 data-[state=active]:shadow-glow-sm py-3"
@@ -55,6 +63,10 @@ export default function DataNavigatorPage() {
             <span>Metadaten</span>
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="datasources" className="mt-6 animate-slide-up">
+          <DataSourceManager />
+        </TabsContent>
 
         <TabsContent value="schema" className="mt-6 animate-slide-up">
           <SchemaViewer />
