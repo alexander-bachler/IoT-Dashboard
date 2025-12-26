@@ -336,9 +336,20 @@ This document provides a comprehensive testing checklist for the IoT Analytics P
 The following tests require a running PostgreSQL/TimescaleDB instance and cannot be executed in this environment without Docker. These should be run manually in a development environment with the full stack running.
 
 ### Critical Issues Found and Fixed
-1. ✅ Missing API endpoint for device metrics - FIXED
+
+**Round 1 - Initial Testing:**
+1. ✅ Missing API endpoint for device metrics - FIXED (devices.py:63-90)
 2. ✅ TODO comment in dashboard-grid.tsx - REMOVED
-3. ✅ All components use real API calls - VERIFIED
+
+**Round 2 - Mock Data Detection:**
+3. ✅ Metadata Editor used mock data - FIXED with real API calls to `/api/v1/schema/tables` and `/api/v1/schema/tables/{table_name}/columns`
+4. ⚠️ Chart Builder has mock preview data - This is intentional for UI preview purposes only
+5. ⚠️ Data Preview Panel has default mock data - This is intentional, receives real data via props from ETL executor
+
+**New Endpoints Added:**
+- GET /api/v1/schema/tables - List database tables from information_schema
+- GET /api/v1/schema/tables/{table_name}/columns - Get columns metadata from information_schema
+- GET /api/v1/schema/tables/{table_name}/preview - Preview table data (security whitelisted)
 
 ### Recommendations for Manual Testing
 When the environment is available:
