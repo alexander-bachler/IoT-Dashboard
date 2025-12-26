@@ -237,13 +237,68 @@ export function ETLDesigner() {
     loadDataSources();
   }, [loadDataSources]);
 
-  const handleRunPipeline = () => {
+  const handleRunPipeline = async () => {
     setIsRunning(true);
-    // Simulate pipeline execution
-    setTimeout(() => {
+
+    try {
+      const pipeline = {
+        name: 'Interactive Pipeline',
+        description: 'ETL Pipeline from Designer',
+        nodes: nodes.map(n => ({
+          id: n.id,
+          type: n.type,
+          data: n.data,
+          position: n.position
+        })),
+        edges: edges.map(e => ({
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          type: e.type
+        }))
+      };
+
+      const response = await fetch('/api/v1/etl/execute', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          pipeline,
+          preview_only: true,
+          preview_limit: 100
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Pipeline execution failed');
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success(
+          `Pipeline erfolgreich ausgeführt! ${result.rows_processed} Zeilen verarbeitet in ${Math.round(result.execution_time_ms)}ms.`
+        );
+
+        // Show preview data if available
+        if (result.preview_data && result.preview_data.length > 0) {
+          console.log('Preview Data:', result.preview_data);
+          toast.info(`Preview: ${result.preview_data.length} Zeilen geladen`);
+        }
+      } else {
+        toast.error(`Pipeline Fehler: ${result.message}`);
+        if (result.errors && result.errors.length > 0) {
+          console.error('Pipeline errors:', result.errors);
+        }
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Fehler beim Ausführen der Pipeline');
+      console.error('Pipeline execution error:', error);
+    } finally {
       setIsRunning(false);
-      alert('Pipeline erfolgreich ausgeführt! 18.000 Zeilen verarbeitet.');
-    }, 2000);
+    }
   };
 
   const handleSavePipeline = () => {
