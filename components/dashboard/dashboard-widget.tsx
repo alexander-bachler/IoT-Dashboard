@@ -7,12 +7,13 @@ import { TimeSeriesChart } from '@/components/explorer/time-series-chart';
 import { useState, useEffect } from 'react';
 import type { WidgetConfig } from '@/lib/stores/dashboard-store';
 import { useDashboardStore } from '@/lib/stores/dashboard-store';
+import { ConfigureWidgetDialog } from './configure-widget-dialog';
 
 interface DashboardWidgetProps {
   widget: WidgetConfig;
   isEditMode: boolean;
   onRemove: () => void;
-  onConfigure: () => void;
+  onConfigure?: () => void;
 }
 
 interface Series {
@@ -33,6 +34,7 @@ export function DashboardWidget({
 }: DashboardWidgetProps) {
   const [series, setSeries] = useState<Series[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isConfigureOpen, setIsConfigureOpen] = useState(false);
   const { selectedDataSourceIds } = useDashboardStore();
 
   useEffect(() => {
@@ -103,45 +105,59 @@ export function DashboardWidget({
   }, [widget, selectedDataSourceIds]);
 
   return (
-    <Card className="h-full flex flex-col">
-      <CardHeader className="flex-shrink-0 pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">{widget.title}</CardTitle>
-          {isEditMode && (
-            <div className="flex gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={onConfigure}
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={onRemove}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="flex-grow p-2 overflow-hidden">
-        <div className="h-full">
-          <TimeSeriesChart
-            series={series}
-            chartType={
-              ['line', 'bar', 'area', 'scatter'].includes(widget.chartType)
-                ? (widget.chartType as 'line' | 'bar' | 'area' | 'scatter')
-                : 'line'
-            }
-            isLoading={isLoading}
-          />
-        </div>
-      </CardContent>
-    </Card>
+    <>
+      <Card className="h-full flex flex-col">
+        <CardHeader className="flex-shrink-0 pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">{widget.title}</CardTitle>
+            {isEditMode && (
+              <div className="flex gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => {
+                    if (onConfigure) {
+                      onConfigure();
+                    } else {
+                      setIsConfigureOpen(true);
+                    }
+                  }}
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={onRemove}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="flex-grow p-2 overflow-hidden">
+          <div className="h-full">
+            <TimeSeriesChart
+              series={series}
+              chartType={
+                ['line', 'bar', 'area', 'scatter'].includes(widget.chartType)
+                  ? (widget.chartType as 'line' | 'bar' | 'area' | 'scatter')
+                  : 'line'
+              }
+              isLoading={isLoading}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <ConfigureWidgetDialog
+        widget={widget}
+        open={isConfigureOpen}
+        onOpenChange={setIsConfigureOpen}
+      />
+    </>
   );
 }

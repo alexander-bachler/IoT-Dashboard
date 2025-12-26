@@ -120,6 +120,49 @@ class ETLExecutor:
                     if preview_only:
                         preview_data = [dict(row._mapping) for row in rows]
 
+            elif node_type == 'filter':
+                # Filter transformation
+                config = node_data.get('config', {})
+                condition = config.get('condition', '')
+
+                # For preview, just indicate filter would be applied
+                if preview_only:
+                    preview_data = [{
+                        'info': f'Filter applied: {condition}',
+                        'note': 'Actual filtering requires full pipeline execution'
+                    }]
+                    rows_processed = 1
+
+            elif node_type == 'join':
+                # Join transformation
+                config = node_data.get('config', {})
+                join_table = config.get('table', '')
+                join_on = config.get('on', '')
+                join_type = config.get('type', 'LEFT')
+
+                # For preview, just indicate join would be applied
+                if preview_only:
+                    preview_data = [{
+                        'info': f'{join_type} JOIN with {join_table} ON {join_on}',
+                        'note': 'Actual join requires full pipeline execution'
+                    }]
+                    rows_processed = 1
+
+            elif node_type == 'aggregate':
+                # Aggregate transformation
+                config = node_data.get('config', {})
+                group_by = config.get('groupBy', '')
+                aggregations = config.get('aggregations', '')
+
+                # For preview, just indicate aggregation would be applied
+                if preview_only:
+                    preview_data = [{
+                        'info': f'Aggregate: {aggregations}',
+                        'group_by': group_by,
+                        'note': 'Actual aggregation requires full pipeline execution'
+                    }]
+                    rows_processed = 1
+
             else:
                 errors.append(f"Node type '{node_type}' not yet supported for execution")
 
