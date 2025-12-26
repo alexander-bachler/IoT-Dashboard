@@ -56,6 +56,10 @@ export interface DashboardState {
   isEditMode: boolean;
   setEditMode: (enabled: boolean) => void;
 
+  // Data Source Filter
+  selectedDataSourceIds: string[];
+  setSelectedDataSourceIds: (ids: string[]) => void;
+
   // Reset
   reset: () => void;
 }
@@ -106,12 +110,16 @@ export const useDashboardStore = create<DashboardState>()(
       isEditMode: false,
       setEditMode: (enabled) => set({ isEditMode: enabled }),
 
+      selectedDataSourceIds: [],
+      setSelectedDataSourceIds: (ids) => set({ selectedDataSourceIds: ids }),
+
       reset: () =>
         set({
           currentDashboardId: null,
           layout: [],
           widgets: [],
           isEditMode: false,
+          selectedDataSourceIds: [],
         }),
     }),
     {

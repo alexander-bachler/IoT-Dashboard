@@ -6,6 +6,7 @@ import { X, Settings } from 'lucide-react';
 import { TimeSeriesChart } from '@/components/explorer/time-series-chart';
 import { useState, useEffect } from 'react';
 import type { WidgetConfig } from '@/lib/stores/dashboard-store';
+import { useDashboardStore } from '@/lib/stores/dashboard-store';
 
 interface DashboardWidgetProps {
   widget: WidgetConfig;
@@ -32,6 +33,7 @@ export function DashboardWidget({
 }: DashboardWidgetProps) {
   const [series, setSeries] = useState<Series[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { selectedDataSourceIds } = useDashboardStore();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -58,21 +60,31 @@ export function DashboardWidget({
           }
         }
 
-        const response = await fetch('/api/measurements/query', {
+        const requestBody: any = {
+          metric_ids: widget.metricIds,
+          start_time: start.toISOString(),
+          end_time: end.toISOString(),
+        };
+
+        // Add data source filter if selected
+        if (selectedDataSourceIds.length > 0) {
+          requestBody.data_source_ids = selectedDataSourceIds;
+        }
+
+        if (widget.aggregationInterval) {
+          requestBody.aggregation = widget.aggregationInterval;
+        }
+
+        const response = await fetch('/api/v1/measurements/query', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            metricIds: widget.metricIds,
-            startTime: start.toISOString(),
-            endTime: end.toISOString(),
-            aggregation: widget.aggregationInterval,
-          }),
+          body: JSON.stringify(requestBody),
         });
 
         const data = await response.json();
-        setSeries(data.series || []);
+        setSeries(data || []);
       } catch (error) {
         console.error('Error fetching widget data:', error);
         setSeries([]);
@@ -88,7 +100,7 @@ export function DashboardWidget({
       const interval = setInterval(fetchData, widget.refreshInterval * 1000);
       return () => clearInterval(interval);
     }
-  }, [widget]);
+  }, [widget, selectedDataSourceIds]);
 
   return (
     <Card className="h-full flex flex-col">

@@ -43,6 +43,7 @@ class TimeSeriesQuery(BaseModel):
     interval: Optional[str] = None  # e.g., "1h", "15m", "1d"
     aggregation: Optional[Literal["avg", "sum", "min", "max", "count"]] = None
     limit: Optional[int] = Field(None, le=10000)
+    data_source_ids: Optional[List[UUID]] = None  # Filter by data sources
 
 
 class TimeSeriesDataPoint(BaseModel):

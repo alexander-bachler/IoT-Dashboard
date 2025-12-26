@@ -32,8 +32,8 @@ async def query_time_series(
     db: AsyncSession = Depends(get_db)
 ):
     """Query time-series data for multiple metrics"""
-    # Verify metric ownership
-    result = await db.execute(
+    # Verify metric ownership with optional data source filter
+    stmt = (
         select(Metric.id)
         .join(Device)
         .join(DataSource)
@@ -42,6 +42,12 @@ async def query_time_series(
             DataSource.owner_id == current_user.id
         )
     )
+
+    # Apply data source filter if specified
+    if query.data_source_ids:
+        stmt = stmt.where(DataSource.id.in_(query.data_source_ids))
+
+    result = await db.execute(stmt)
     owned_metric_ids = [row[0] for row in result.all()]
 
     if not owned_metric_ids:

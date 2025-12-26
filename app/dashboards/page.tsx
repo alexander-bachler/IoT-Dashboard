@@ -7,6 +7,7 @@ import { DashboardGrid } from '@/components/dashboard/dashboard-grid';
 import { DashboardManager } from '@/components/dashboard/dashboard-manager';
 import { AddWidgetDialog } from '@/components/dashboard/add-widget-dialog';
 import { TemplateSelector } from '@/components/dashboard/template-selector';
+import { DataSourceFilter } from '@/components/dashboard/datasource-filter';
 import { useDashboardStore } from '@/lib/stores/dashboard-store';
 import type { DashboardTemplate } from '@/lib/utils/dashboard-templates';
 import { Plus, Edit, Eye } from 'lucide-react';
@@ -54,6 +55,8 @@ export default function DashboardsPage() {
             <DashboardManager />
             <div className="h-8 w-px bg-border" />
             <div className="flex gap-2">
+              <DataSourceFilter />
+              <div className="h-8 w-px bg-border" />
               <TemplateSelector onSelectTemplate={handleApplyTemplate} />
               <Button
                 variant={isEditMode ? 'default' : 'outline'}
