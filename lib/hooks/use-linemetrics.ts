@@ -18,6 +18,7 @@ import {
   type LMDataPoint,
   type LMDataQueryParams,
 } from '../integrations/linemetrics-client';
+import apiClient from '../api/client';
 
 // ============================================================================
 // Query Keys for Caching
@@ -378,20 +379,8 @@ export function useLineMetricsSync() {
 
   return useMutation({
     mutationFn: async (config: LineMetricsConfig) => {
-      const response = await fetch('/api/v1/linemetrics/sync', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ config }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Sync failed');
-      }
-
-      return await response.json();
+      const response = await apiClient.post('/api/v1/linemetrics/sync', { config });
+      return response.data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: lineMetricsKeys.all });
@@ -400,7 +389,7 @@ export function useLineMetricsSync() {
       );
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to sync LineMetrics data');
+      toast.error(error.response?.data?.detail || error.message || 'Failed to sync LineMetrics data');
     },
   });
 }
@@ -426,33 +415,21 @@ export function useLineMetricsImport() {
       aggregation?: string;
       interval?: string;
     }) => {
-      const response = await fetch('/api/v1/linemetrics/import', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          config,
-          stream_ids: streamIds,
-          from_time: fromTime.toISOString(),
-          to_time: toTime.toISOString(),
-          aggregation,
-          interval,
-        }),
+      const response = await apiClient.post('/api/v1/linemetrics/import', {
+        config,
+        stream_ids: streamIds,
+        from_time: fromTime.toISOString(),
+        to_time: toTime.toISOString(),
+        aggregation,
+        interval,
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Import failed');
-      }
-
-      return await response.json();
+      return response.data;
     },
     onSuccess: (data) => {
       toast.success(`Imported ${data.measurements_imported} measurements from LineMetrics`);
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to import LineMetrics data');
+      toast.error(error.response?.data?.detail || error.message || 'Failed to import LineMetrics data');
     },
   });
 }
@@ -464,20 +441,8 @@ export function useLineMetricsImport() {
 export function useLineMetricsBackendTest() {
   return useMutation({
     mutationFn: async (config: LineMetricsConfig) => {
-      const response = await fetch('/api/v1/linemetrics/test', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(config),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Connection test failed');
-      }
-
-      return await response.json();
+      const response = await apiClient.post('/api/v1/linemetrics/test', config);
+      return response.data;
     },
     onSuccess: (data) => {
       if (data.success) {
@@ -487,7 +452,7 @@ export function useLineMetricsBackendTest() {
       }
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to test LineMetrics connection');
+      toast.error(error.response?.data?.detail || error.message || 'Failed to test LineMetrics connection');
     },
   });
 }
@@ -499,20 +464,8 @@ export function useLineMetricsBackendTest() {
 export function useLineMetricsBackendDevices(config?: LineMetricsConfig) {
   return useMutation({
     mutationFn: async (cfg: LineMetricsConfig = config!) => {
-      const response = await fetch('/api/v1/linemetrics/devices', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(cfg),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Failed to fetch devices');
-      }
-
-      return await response.json();
+      const response = await apiClient.post('/api/v1/linemetrics/devices', cfg);
+      return response.data;
     },
   });
 }
@@ -524,20 +477,8 @@ export function useLineMetricsBackendDevices(config?: LineMetricsConfig) {
 export function useLineMetricsBackendDeviceStreams(deviceId: string) {
   return useMutation({
     mutationFn: async (config: LineMetricsConfig) => {
-      const response = await fetch(`/api/v1/linemetrics/devices/${deviceId}/streams`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(config),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Failed to fetch device streams');
-      }
-
-      return await response.json();
+      const response = await apiClient.post(`/api/v1/linemetrics/devices/${deviceId}/streams`, config);
+      return response.data;
     },
   });
 }

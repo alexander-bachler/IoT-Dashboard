@@ -52,9 +52,9 @@ export function QuickActionsFAB() {
       icon: Database,
       label: 'Add Data Source',
       action: () => {
-        router.push('/data-sources');
+        router.push('/data-navigator?tab=sources');
         setIsOpen(false);
-        toast.success('Opening Data Sources');
+        toast.success('Opening Data Navigator');
       },
       color: 'from-green-500 to-emerald-500',
     },

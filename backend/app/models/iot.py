@@ -54,7 +54,7 @@ class Device(Base):
     device_metadata = Column("metadata", JSON, nullable=True)  # renamed to avoid SQLAlchemy reserved name
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     data_source_id = Column(UUID(as_uuid=True), ForeignKey("data_sources.id"), nullable=False)
 
     # Relationships
@@ -75,7 +75,7 @@ class Metric(Base):
     metric_metadata = Column("metadata", JSON, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     device_id = Column(UUID(as_uuid=True), ForeignKey("devices.id"), nullable=False)
 
     # Composite unique constraint

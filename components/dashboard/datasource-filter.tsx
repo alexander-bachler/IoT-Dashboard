@@ -13,6 +13,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Database, X } from 'lucide-react';
 import { useDashboardStore } from '@/lib/stores/dashboard-store';
+import apiClient from '@/lib/api/client';
 
 interface DataSource {
   id: string;
@@ -33,11 +34,8 @@ export function DataSourceFilter() {
   const loadDataSources = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/v1/data-sources');
-      if (response.ok) {
-        const data = await response.json();
-        setDataSources(data);
-      }
+      const response = await apiClient.get('/api/v1/data-sources');
+      setDataSources(response.data || []);
     } catch (error) {
       console.error('Failed to load data sources:', error);
     } finally {

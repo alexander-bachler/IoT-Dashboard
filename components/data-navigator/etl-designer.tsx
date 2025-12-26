@@ -46,6 +46,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
+import apiClient from '@/lib/api/client';
 
 const nodeTypes = {
   transform: TransformNode,
@@ -219,14 +220,11 @@ export function ETLDesigner() {
   const loadDataSources = useCallback(async () => {
     setLoadingDataSources(true);
     try {
-      const response = await fetch('/api/v1/schema/datasources/summary');
-      if (!response.ok) {
-        throw new Error('Failed to load data sources');
-      }
-      const data = await response.json();
-      setDataSources(data.data_sources);
+      const response = await apiClient.get('/api/v1/schema/datasources/summary');
+      setDataSources(response.data.data_sources || []);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to load data sources');
+      console.error('Failed to load data sources:', error);
+      toast.error(error.response?.data?.detail || error.message || 'Failed to load data sources');
     } finally {
       setLoadingDataSources(false);
     }
@@ -258,24 +256,13 @@ export function ETLDesigner() {
         }))
       };
 
-      const response = await fetch('/api/v1/etl/execute', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          pipeline,
-          preview_only: true,
-          preview_limit: 100
-        }),
+      const response = await apiClient.post('/api/v1/etl/execute', {
+        pipeline,
+        preview_only: true,
+        preview_limit: 100
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Pipeline execution failed');
-      }
-
-      const result = await response.json();
+      const result = response.data;
 
       if (result.success) {
         toast.success(
@@ -294,7 +281,7 @@ export function ETLDesigner() {
         }
       }
     } catch (error: any) {
-      toast.error(error.message || 'Fehler beim Ausführen der Pipeline');
+      toast.error(error.response?.data?.detail || error.message || 'Fehler beim Ausführen der Pipeline');
       console.error('Pipeline execution error:', error);
     } finally {
       setIsRunning(false);

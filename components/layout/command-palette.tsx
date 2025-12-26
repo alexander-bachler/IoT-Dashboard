@@ -14,14 +14,10 @@ import {
 import {
   Home,
   Database,
-  Workflow,
   LineChart,
   BarChart3,
   AlertTriangle,
   LayoutDashboard,
-  Search,
-  Settings,
-  FileText,
   Download,
   Upload,
   RefreshCw,
@@ -68,15 +64,6 @@ export function CommandPalette() {
     },
     {
       icon: Database,
-      label: 'Data Sources',
-      action: () => {
-        router.push('/data-sources');
-        setOpen(false);
-      },
-      group: 'navigation',
-    },
-    {
-      icon: Workflow,
       label: 'Data Navigator',
       action: () => {
         router.push('/data-navigator');

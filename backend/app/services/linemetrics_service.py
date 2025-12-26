@@ -308,7 +308,7 @@ async def sync_linemetrics_devices(
             result = await db.execute(
                 select(Device).where(
                     Device.external_id == device_id,
-                    Device.source_id == data_source.id,
+                    Device.data_source_id == data_source.id,
                 )
             )
             device = result.scalar_one_or_none()
@@ -317,16 +317,16 @@ async def sync_linemetrics_devices(
                 # Update existing device
                 device.name = lm_device.get("title") or lm_device.get("name", device.name)
                 device.description = lm_device.get("description")
-                device.status = "active"
+                device.is_active = True
                 stats["devices_updated"] += 1
             else:
                 # Create new device
                 device = Device(
-                    source_id=data_source.id,
+                    data_source_id=data_source.id,
                     external_id=device_id,
                     name=lm_device.get("title") or lm_device.get("name", f"Device {device_id}"),
                     description=lm_device.get("description"),
-                    status="active",
+                    is_active=True,
                 )
                 db.add(device)
                 stats["devices_created"] += 1
@@ -358,7 +358,7 @@ async def sync_linemetrics_devices(
                             external_id=stream_id,
                             name=stream.get("name", f"Input {stream_id}"),
                             unit=stream.get("unit"),
-                            data_type=stream.get("dataType", "number"),
+                            metric_type=stream.get("dataType", "number"),
                             description=stream.get("alias") or stream.get("description"),
                         )
                         db.add(metric)

@@ -13,6 +13,7 @@ import {
 import { Download, FileJson, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { useDashboardStore } from '@/lib/stores/dashboard-store';
 import { toast } from 'sonner';
+import apiClient from '@/lib/api/client';
 
 export function ExportDashboardData() {
   const [isExporting, setIsExporting] = useState(false);
@@ -48,35 +49,31 @@ export function ExportDashboardData() {
             start.setDate(start.getDate() - 1);
         }
 
-        const response = await fetch('/api/v1/measurements/query', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
+        try {
+          const response = await apiClient.post('/api/v1/measurements/query', {
             metric_ids: widget.metricIds,
             start_time: start.toISOString(),
             end_time: end.toISOString(),
-          }),
-        });
+          });
 
-        if (!response.ok) continue;
+          const data = response.data;
 
-        const data = await response.json();
-
-        // Flatten data for CSV
-        data.forEach((series: any) => {
-          series.data.forEach((point: any) => {
-            allData.push({
-              widget_title: widget.title,
-              metric_name: series.metric_name,
-              metric_unit: series.metric_unit || '',
-              time: point.time,
-              value: point.value,
-              quality: point.quality || '',
+          // Flatten data for CSV
+          data.forEach((series: any) => {
+            series.data.forEach((point: any) => {
+              allData.push({
+                widget_title: widget.title,
+                metric_name: series.metric_name,
+                metric_unit: series.metric_unit || '',
+                time: point.time,
+                value: point.value,
+                quality: point.quality || '',
+              });
             });
           });
-        });
+        } catch {
+          continue;
+        }
       }
 
       if (allData.length === 0) {
@@ -151,30 +148,26 @@ export function ExportDashboardData() {
             start.setDate(start.getDate() - 1);
         }
 
-        const response = await fetch('/api/v1/measurements/query', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
+        try {
+          const response = await apiClient.post('/api/v1/measurements/query', {
             metric_ids: widget.metricIds,
             start_time: start.toISOString(),
             end_time: end.toISOString(),
-          }),
-        });
+          });
 
-        if (!response.ok) continue;
+          const data = response.data;
 
-        const data = await response.json();
-
-        exportData.dashboard_widgets.push({
-          widget: {
-            title: widget.title,
-            chart_type: widget.chartType,
-            time_range: widget.timeRange,
-          },
-          data: data,
-        });
+          exportData.dashboard_widgets.push({
+            widget: {
+              title: widget.title,
+              chart_type: widget.chartType,
+              time_range: widget.timeRange,
+            },
+            data: data,
+          });
+        } catch {
+          continue;
+        }
       }
 
       if (exportData.dashboard_widgets.length === 0) {

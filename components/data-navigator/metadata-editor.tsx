@@ -41,6 +41,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import apiClient from '@/lib/api/client';
 
 interface Column {
   name: string;
@@ -94,10 +95,8 @@ export function MetadataEditor() {
   const loadTables = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/v1/schema/tables');
-      if (!response.ok) throw new Error('Failed to load tables');
-
-      const data = await response.json();
+      const response = await apiClient.get('/api/v1/schema/tables');
+      const data = response.data;
       const tablesData = data.map((table: any) => ({
         name: table.name,
         display_name: table.display_name,
@@ -113,9 +112,9 @@ export function MetadataEditor() {
       if (tablesData.length > 0) {
         loadTableColumns(tablesData[0].name, tablesData);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load tables:', error);
-      toast.error('Fehler beim Laden der Tabellen');
+      toast.error(error.response?.data?.detail || 'Fehler beim Laden der Tabellen');
     } finally {
       setLoading(false);
     }
@@ -124,10 +123,8 @@ export function MetadataEditor() {
   const loadTableColumns = async (tableName: string, existingTables?: TableMetadata[]) => {
     setLoadingColumns(true);
     try {
-      const response = await fetch(`/api/v1/schema/tables/${tableName}/columns`);
-      if (!response.ok) throw new Error('Failed to load columns');
-
-      const columns = await response.json();
+      const response = await apiClient.get(`/api/v1/schema/tables/${tableName}/columns`);
+      const columns = response.data;
 
       const table: TableMetadata = {
         name: tableName,
@@ -142,9 +139,9 @@ export function MetadataEditor() {
       // Update tables array
       const tablesList = existingTables || tables;
       setTables(tablesList.map((t) => (t.name === tableName ? table : t)));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load columns:', error);
-      toast.error('Fehler beim Laden der Spalten');
+      toast.error(error.response?.data?.detail || 'Fehler beim Laden der Spalten');
     } finally {
       setLoadingColumns(false);
     }

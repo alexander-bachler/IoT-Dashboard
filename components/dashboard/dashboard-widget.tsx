@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import type { WidgetConfig } from '@/lib/stores/dashboard-store';
 import { useDashboardStore } from '@/lib/stores/dashboard-store';
 import { ConfigureWidgetDialog } from './configure-widget-dialog';
+import apiClient from '@/lib/api/client';
 
 interface DashboardWidgetProps {
   widget: WidgetConfig;
@@ -77,16 +78,8 @@ export function DashboardWidget({
           requestBody.aggregation = widget.aggregationInterval;
         }
 
-        const response = await fetch('/api/v1/measurements/query', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestBody),
-        });
-
-        const data = await response.json();
-        setSeries(data || []);
+        const response = await apiClient.post('/api/v1/measurements/query', requestBody);
+        setSeries(response.data || []);
       } catch (error) {
         console.error('Error fetching widget data:', error);
         setSeries([]);

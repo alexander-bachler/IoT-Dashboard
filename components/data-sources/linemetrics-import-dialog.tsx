@@ -22,6 +22,7 @@ import {
 import { Loader2, Download, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import apiClient from '@/lib/api/client';
 
 interface LineMetricsImportDialogProps {
   datasourceId: string;
@@ -66,31 +67,26 @@ export function LineMetricsImportDialog({
     setLoadingStreams(true);
     try {
       // Fetch devices
-      const devicesResponse = await fetch(`/api/v1/linemetrics/${datasourceId}/devices`);
-      if (!devicesResponse.ok) {
-        throw new Error('Failed to load devices');
-      }
-      const devicesData = await devicesResponse.json();
+      const devicesResponse = await apiClient.get(`/api/v1/linemetrics/${datasourceId}/devices`);
+      const devicesData = devicesResponse.data;
       setDevices(devicesData);
 
       // Fetch streams for each device
       const allStreams: DeviceStream[] = [];
       for (const device of devicesData) {
         try {
-          const streamsResponse = await fetch(
+          const streamsResponse = await apiClient.get(
             `/api/v1/linemetrics/${datasourceId}/devices/${device.id}/streams`
           );
-          if (streamsResponse.ok) {
-            const deviceStreams = await streamsResponse.json();
-            deviceStreams.forEach((stream: any) => {
-              allStreams.push({
-                id: stream.id,
-                name: stream.name,
-                unit: stream.unit,
-                deviceName: device.name,
-              });
+          const deviceStreams = streamsResponse.data;
+          deviceStreams.forEach((stream: any) => {
+            allStreams.push({
+              id: stream.id,
+              name: stream.name,
+              unit: stream.unit,
+              deviceName: device.name,
             });
-          }
+          });
         } catch (error) {
           console.error(`Failed to load streams for device ${device.id}:`, error);
         }
@@ -131,26 +127,15 @@ export function LineMetricsImportDialog({
     setLoading(true);
 
     try {
-      const response = await fetch(`/api/v1/linemetrics/${datasourceId}/import`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          stream_ids: selectedStreams,
-          from_time: new Date(formData.fromDate).toISOString(),
-          to_time: new Date(formData.toDate).toISOString(),
-          aggregation: formData.aggregation,
-          interval: formData.granularity,
-        }),
+      const response = await apiClient.post(`/api/v1/linemetrics/${datasourceId}/import`, {
+        stream_ids: selectedStreams,
+        from_time: new Date(formData.fromDate).toISOString(),
+        to_time: new Date(formData.toDate).toISOString(),
+        aggregation: formData.aggregation,
+        interval: formData.granularity,
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Failed to import measurements');
-      }
-
-      const result = await response.json();
+      const result = response.data;
 
       toast.success(
         `Successfully imported ${result.measurements_imported} measurements from ${selectedStreams.length} streams!`

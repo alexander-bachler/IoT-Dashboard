@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { TableNode } from './table-node';
 import { Info, ZoomIn, ZoomOut, Maximize2, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import apiClient from '@/lib/api/client';
 
 const nodeTypes = {
   table: TableNode,
@@ -37,9 +38,15 @@ const initialNodes: Node[] = [
         { name: 'id', type: 'UUID', isPrimary: true },
         { name: 'name', type: 'TEXT', isRequired: true },
         { name: 'type', type: 'TEXT', isRequired: true },
-        { name: 'api_url', type: 'TEXT' },
-        { name: 'api_token', type: 'TEXT' },
-        { name: 'created_at', type: 'TIMESTAMP' },
+        { name: 'api_url', type: 'TEXT', isRequired: true },
+        { name: 'api_token', type: 'TEXT', isRequired: true },
+        { name: 'client_id', type: 'TEXT' },
+        { name: 'config', type: 'JSONB' },
+        { name: 'is_active', type: 'BOOLEAN' },
+        { name: 'last_sync', type: 'TIMESTAMPTZ' },
+        { name: 'owner_id', type: 'UUID', isForeign: true },
+        { name: 'created_at', type: 'TIMESTAMPTZ' },
+        { name: 'updated_at', type: 'TIMESTAMPTZ' },
       ],
       recordCount: '~10',
     },
@@ -52,12 +59,14 @@ const initialNodes: Node[] = [
       label: 'devices',
       columns: [
         { name: 'id', type: 'UUID', isPrimary: true },
-        { name: 'source_id', type: 'UUID', isForeign: true },
+        { name: 'data_source_id', type: 'UUID', isForeign: true },
         { name: 'external_id', type: 'TEXT', isRequired: true },
         { name: 'name', type: 'TEXT', isRequired: true },
         { name: 'description', type: 'TEXT' },
         { name: 'location', type: 'TEXT' },
+        { name: 'is_active', type: 'BOOLEAN' },
         { name: 'created_at', type: 'TIMESTAMP' },
+        { name: 'updated_at', type: 'TIMESTAMP' },
       ],
       recordCount: '~150',
     },
@@ -74,8 +83,11 @@ const initialNodes: Node[] = [
         { name: 'external_id', type: 'TEXT', isRequired: true },
         { name: 'name', type: 'TEXT', isRequired: true },
         { name: 'unit', type: 'TEXT' },
-        { name: 'data_type', type: 'TEXT' },
+        { name: 'metric_type', type: 'TEXT' },
+        { name: 'description', type: 'TEXT' },
+        { name: 'is_active', type: 'BOOLEAN' },
         { name: 'created_at', type: 'TIMESTAMP' },
+        { name: 'updated_at', type: 'TIMESTAMP' },
       ],
       recordCount: '~500',
     },
@@ -89,8 +101,10 @@ const initialNodes: Node[] = [
       columns: [
         { name: 'time', type: 'TIMESTAMPTZ', isPrimary: true },
         { name: 'metric_id', type: 'UUID', isPrimary: true, isForeign: true },
+        { name: 'device_id', type: 'UUID', isForeign: true },
         { name: 'value', type: 'DOUBLE', isRequired: true },
-        { name: 'quality', type: 'INTEGER' },
+        { name: 'quality', type: 'TEXT' },
+        { name: 'metadata', type: 'JSONB' },
       ],
       recordCount: '~10M',
       isHypertable: true,
@@ -106,10 +120,14 @@ const initialNodes: Node[] = [
         { name: 'id', type: 'UUID', isPrimary: true },
         { name: 'metric_id', type: 'UUID', isForeign: true },
         { name: 'device_id', type: 'UUID', isForeign: true },
-        { name: 'timestamp', type: 'TIMESTAMPTZ' },
-        { name: 'value', type: 'DOUBLE' },
+        { name: 'timestamp', type: 'TIMESTAMPTZ', isRequired: true },
+        { name: 'value', type: 'DOUBLE', isRequired: true },
+        { name: 'expected_value', type: 'DOUBLE' },
         { name: 'z_score', type: 'DOUBLE' },
-        { name: 'severity', type: 'TEXT' },
+        { name: 'severity', type: 'TEXT', isRequired: true },
+        { name: 'type', type: 'TEXT', isRequired: true },
+        { name: 'acknowledged', type: 'BOOLEAN' },
+        { name: 'detected_at', type: 'TIMESTAMPTZ' },
       ],
       recordCount: '~2K',
     },
@@ -122,10 +140,14 @@ const initialNodes: Node[] = [
       label: 'dashboards',
       columns: [
         { name: 'id', type: 'UUID', isPrimary: true },
-        { name: 'name', type: 'TEXT', isRequired: true },
+        { name: 'name', type: 'VARCHAR', isRequired: true },
         { name: 'description', type: 'TEXT' },
-        { name: 'layout', type: 'JSONB' },
-        { name: 'created_at', type: 'TIMESTAMP' },
+        { name: 'config', type: 'JSON', isRequired: true },
+        { name: 'is_favorite', type: 'BOOLEAN' },
+        { name: 'is_public', type: 'BOOLEAN' },
+        { name: 'owner_id', type: 'UUID', isForeign: true },
+        { name: 'created_at', type: 'TIMESTAMPTZ' },
+        { name: 'updated_at', type: 'TIMESTAMPTZ' },
       ],
       recordCount: '~25',
     },
@@ -139,7 +161,7 @@ const initialEdges: Edge[] = [
     source: 'data_sources',
     target: 'devices',
     sourceHandle: 'id',
-    targetHandle: 'source_id',
+    targetHandle: 'data_source_id',
     label: '1:N',
     type: 'smoothstep',
     animated: true,
@@ -187,6 +209,17 @@ const initialEdges: Edge[] = [
     type: 'smoothstep',
     style: { stroke: '#ef4444' },
   },
+  {
+    id: 'e-device-measurement',
+    source: 'devices',
+    target: 'measurements',
+    sourceHandle: 'id',
+    targetHandle: 'device_id',
+    label: '1:N',
+    type: 'smoothstep',
+    animated: true,
+    style: { stroke: '#10b981' },
+  },
 ];
 
 interface TableNodeData {
@@ -218,17 +251,14 @@ export function SchemaViewer() {
   const loadSchema = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/v1/schema/nodes');
-      if (!response.ok) {
-        throw new Error('Failed to load schema');
-      }
-      const data = await response.json();
+      const response = await apiClient.get('/api/v1/schema/nodes');
+      const data = response.data;
 
       setNodes(data.nodes);
       setEdges(data.edges);
       toast.success(`Schema loaded: ${data.data_source_count} data sources found`);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to load schema');
+      toast.error(error.response?.data?.detail || error.message || 'Failed to load schema');
     } finally {
       setLoading(false);
     }

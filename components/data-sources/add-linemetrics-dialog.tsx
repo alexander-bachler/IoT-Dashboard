@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { Loader2, Plus, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
+import apiClient from '@/lib/api/client';
 
 export function AddLineMetricsDialog({ onSuccess }: { onSuccess?: () => void }) {
   const [open, setOpen] = useState(false);
@@ -31,25 +32,14 @@ export function AddLineMetricsDialog({ onSuccess }: { onSuccess?: () => void }) 
     setLoading(true);
 
     try {
-      const response = await fetch('/api/v1/linemetrics/datasource', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          api_url: formData.apiUrl,
-          client_id: formData.clientId,
-          client_secret: formData.clientSecret,
-        }),
+      const response = await apiClient.post('/api/v1/linemetrics/datasource', {
+        name: formData.name,
+        api_url: formData.apiUrl,
+        client_id: formData.clientId,
+        client_secret: formData.clientSecret,
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Failed to create LineMetrics data source');
-      }
-
-      const result = await response.json();
+      const result = response.data;
 
       toast.success(
         `LineMetrics data source "${result.name}" created successfully! Found ${result.device_count} devices.`

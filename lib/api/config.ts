@@ -3,9 +3,28 @@
  * Central configuration for API base URL and environment settings
  */
 
+// Helper to get API URL - handles empty string from build-time replacement
+const getApiUrl = (): string => {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+  // If env var is set and not empty, use it
+  if (envUrl && envUrl.trim() !== '') {
+    return envUrl;
+  }
+  // Fallback to localhost:8000
+  return 'http://localhost:8000';
+};
+
+const getWsUrl = (): string => {
+  const envUrl = process.env.NEXT_PUBLIC_WS_URL;
+  if (envUrl && envUrl.trim() !== '') {
+    return envUrl;
+  }
+  return 'ws://localhost:8000';
+};
+
 export const API_CONFIG = {
-  BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
-  WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000',
+  BASE_URL: getApiUrl(),
+  WS_URL: getWsUrl(),
   TIMEOUT: 30000, // 30 seconds
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY: 1000, // 1 second

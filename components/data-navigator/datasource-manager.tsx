@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Database, Plus, RefreshCw, CheckCircle, XCircle, Activity, TrendingUp, Trash2, Download, Upload } from 'lucide-react';
 import { format } from 'date-fns';
 import { useDataSources, useCreateDataSource, useSyncDataSource, useDeleteDataSource, useDataSourceStats } from '@/lib/hooks/use-data-sources';
+import apiClient from '@/lib/api/client';
 import { DataSourceSkeleton } from '@/components/ui/skeleton-loader';
 import { NoDataSourcesState, ErrorState } from '@/components/ui/empty-state';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
@@ -45,16 +47,8 @@ function DataSourceCard({ source }: { source: any }) {
       // LineMetrics-specific sync
       setSyncing(true);
       try {
-        const response = await fetch(`/api/v1/linemetrics/${source.id}/sync`, {
-          method: 'POST',
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.detail || 'Sync failed');
-        }
-
-        const result = await response.json();
+        const response = await apiClient.post(`/api/v1/linemetrics/${source.id}/sync`);
+        const result = response.data;
         toast.success(
           `Synced ${result.devices_created + result.devices_updated} devices and ${result.metrics_created} metrics`
         );
@@ -62,7 +56,7 @@ function DataSourceCard({ source }: { source: any }) {
         // Refresh stats
         window.location.reload();
       } catch (error: any) {
-        toast.error(error.message || 'Failed to sync LineMetrics data');
+        toast.error(error.response?.data?.detail || error.message || 'Failed to sync LineMetrics data');
       } finally {
         setSyncing(false);
       }
@@ -237,25 +231,14 @@ function AddDataSourceDialog({ open, onOpenChange, onSuccess }: { open: boolean;
       // Handle LineMetrics separately
       setLoading(true);
       try {
-        const response = await fetch('/api/v1/linemetrics/datasource', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name: name,
-            api_url: apiUrl,
-            client_id: clientId,
-            client_secret: clientSecret,
-          }),
+        const response = await apiClient.post('/api/v1/linemetrics/datasource', {
+          name: name,
+          api_url: apiUrl,
+          client_id: clientId,
+          client_secret: clientSecret,
         });
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.detail || 'Failed to create LineMetrics data source');
-        }
-
-        const result = await response.json();
+        const result = response.data;
         toast.success(
           `LineMetrics data source "${result.name}" created successfully! Found ${result.device_count} devices.`
         );
@@ -267,7 +250,7 @@ function AddDataSourceDialog({ open, onOpenChange, onSuccess }: { open: boolean;
           onSuccess();
         }
       } catch (error: any) {
-        toast.error(error.message || 'Failed to create LineMetrics data source');
+        toast.error(error.response?.data?.detail || error.message || 'Failed to create LineMetrics data source');
       } finally {
         setLoading(false);
       }
@@ -276,41 +259,28 @@ function AddDataSourceDialog({ open, onOpenChange, onSuccess }: { open: boolean;
       setLoading(true);
       try {
         // First create the data source
-        const createResponse = await fetch('/api/v1/data-sources', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name,
-            type: 'file',
-            api_url: '',
-            api_token: '',
-            description,
-          }),
+        const createResponse = await apiClient.post('/api/v1/data-sources', {
+          name,
+          type: 'file',
+          api_url: '',
+          api_token: '',
+          description,
         });
 
-        if (!createResponse.ok) {
-          throw new Error('Failed to create file data source');
-        }
-
-        const createdSource = await createResponse.json();
+        const createdSource = createResponse.data;
 
         // If a file is selected, upload it
         if (selectedFile) {
           const formData = new FormData();
           formData.append('file', selectedFile);
 
-          const uploadResponse = await fetch(`/api/v1/data-sources/${createdSource.id}/upload`, {
-            method: 'POST',
-            body: formData,
-          });
+          const uploadResponse = await apiClient.post(
+            `/api/v1/data-sources/${createdSource.id}/upload`,
+            formData,
+            { headers: { 'Content-Type': 'multipart/form-data' } }
+          );
 
-          if (!uploadResponse.ok) {
-            throw new Error('Failed to upload file');
-          }
-
-          const uploadResult = await uploadResponse.json();
+          const uploadResult = uploadResponse.data;
           toast.success(
             `File "${selectedFile.name}" uploaded successfully! ${uploadResult.file_stats.rows || 0} rows detected.`
           );
@@ -325,7 +295,7 @@ function AddDataSourceDialog({ open, onOpenChange, onSuccess }: { open: boolean;
           onSuccess();
         }
       } catch (error: any) {
-        toast.error(error.message || 'Failed to create file data source');
+        toast.error(error.response?.data?.detail || error.message || 'Failed to create file data source');
       } finally {
         setLoading(false);
       }
@@ -613,9 +583,21 @@ function StatsCards({ dataSources }: { dataSources: any[] }) {
 
 export function DataSourceManager() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const { data, isLoading, error, refetch } = useDataSources({ page: 1, page_size: 50 });
+  const [mounted, setMounted] = useState(false);
+  const { data: session, status } = useSession();
+  const isAuthenticated = status === 'authenticated';
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
+  const { data, isLoading, error, refetch } = useDataSources(
+    { page: 1, page_size: 50 },
+    { enabled: isAuthenticated && mounted }
+  );
 
-  const dataSources = data?.data ?? [];
+  // API returns array directly, not paginated object
+  const dataSources = Array.isArray(data) ? data : (data?.data ?? []);
 
   const handleAddSuccess = () => {
     refetch();
@@ -642,7 +624,7 @@ export function DataSourceManager() {
         <StatsCards dataSources={dataSources} />
 
         {/* Data Sources List */}
-        {isLoading ? (
+        {!mounted || isLoading || status === 'loading' ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             <DataSourceSkeleton />
             <DataSourceSkeleton />

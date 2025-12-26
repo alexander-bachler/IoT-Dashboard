@@ -13,7 +13,14 @@ export const authOptions: NextAuthOptions = {
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
+        console.log('[NextAuth] authorize called with:', { 
+          username: credentials?.username,
+          hasPassword: !!credentials?.password,
+          API_BASE_URL 
+        });
+        
         if (!credentials?.username || !credentials?.password) {
+          console.log('[NextAuth] Missing credentials');
           return null;
         }
 
@@ -23,6 +30,8 @@ export const authOptions: NextAuthOptions = {
           formData.append('username', credentials.username as string);
           formData.append('password', credentials.password as string);
 
+          console.log('[NextAuth] Calling backend:', `${API_BASE_URL}/api/v1/auth/login`);
+          
           const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
             method: 'POST',
             headers: {
@@ -31,7 +40,11 @@ export const authOptions: NextAuthOptions = {
             body: formData,
           });
 
+          console.log('[NextAuth] Login response status:', response.status);
+
           if (!response.ok) {
+            const errorText = await response.text();
+            console.log('[NextAuth] Login failed:', errorText);
             return null;
           }
 

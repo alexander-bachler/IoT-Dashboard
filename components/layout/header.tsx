@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
-import { Database, LineChart, LayoutDashboard, Home, BarChart3, AlertTriangle, Workflow, Zap, LogOut, User } from 'lucide-react';
+import { Database, LineChart, LayoutDashboard, Home, BarChart3, AlertTriangle, Zap, LogOut, User } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import {
   DropdownMenu,
@@ -20,8 +20,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const navigation = [
   { name: 'Home', href: '/', icon: Home },
-  { name: 'Data Sources', href: '/data-sources', icon: Database },
-  { name: 'Data Navigator', href: '/data-navigator', icon: Workflow },
+  { name: 'Data Navigator', href: '/data-navigator', icon: Database },
   { name: 'Explorer', href: '/explorer', icon: LineChart },
   { name: 'Charts', href: '/charts', icon: BarChart3 },
   { name: 'Anomalies', href: '/anomalies', icon: AlertTriangle },

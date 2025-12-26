@@ -185,9 +185,10 @@ async def get_data_source_stats(
     )
     metric_count = metric_count_result.scalar() or 0
 
-    # Count measurements
+    # Count measurements (Measurement uses composite key: time + metric_id)
     measurement_count_result = await db.execute(
-        select(func.count(Measurement.id))
+        select(func.count())
+        .select_from(Measurement)
         .join(Metric, Metric.id == Measurement.metric_id)
         .join(Device, Device.id == Metric.device_id)
         .where(Device.data_source_id == data_source_id)

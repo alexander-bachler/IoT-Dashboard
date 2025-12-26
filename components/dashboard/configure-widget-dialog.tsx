@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { useDashboardStore, WidgetConfig, ChartType } from '@/lib/stores/dashboard-store';
 import { toast } from 'sonner';
+import apiClient from '@/lib/api/client';
 
 interface Device {
   id: string;
@@ -66,10 +67,9 @@ export function ConfigureWidgetDialog({ widget, open, onOpenChange }: ConfigureW
   useEffect(() => {
     if (open) {
       setLoading(true);
-      fetch('/api/v1/devices')
-        .then((res) => res.json())
-        .then((data) => {
-          setDevices(data || []);
+      apiClient.get('/api/v1/devices')
+        .then((response) => {
+          setDevices(response.data || []);
         })
         .catch((error) => {
           console.error('Failed to load devices:', error);
@@ -86,10 +86,9 @@ export function ConfigureWidgetDialog({ widget, open, onOpenChange }: ConfigureW
       return;
     }
 
-    fetch(`/api/v1/devices/${selectedDeviceId}/metrics`)
-      .then((res) => res.json())
-      .then((data) => {
-        setAvailableMetrics(data || []);
+    apiClient.get(`/api/v1/devices/${selectedDeviceId}/metrics`)
+      .then((response) => {
+        setAvailableMetrics(response.data || []);
       })
       .catch((error) => {
         console.error('Failed to load metrics:', error);
