@@ -1,10 +1,8 @@
-import type { EChartsOption } from 'echarts';
-
 /**
  * Standard toolbox configuration for all charts
  * Includes: Download as PNG, Data Zoom, Restore
  */
-export function getChartToolbox(chartName?: string): EChartsOption['toolbox'] {
+export function getChartToolbox(chartName?: string) {
   return {
     feature: {
       saveAsImage: {
@@ -40,7 +38,7 @@ export function getChartToolbox(chartName?: string): EChartsOption['toolbox'] {
 /**
  * Standard dataZoom configuration for time-series charts
  */
-export function getDataZoom(): EChartsOption['dataZoom'] {
+export function getDataZoom() {
   return [
     {
       type: 'inside',

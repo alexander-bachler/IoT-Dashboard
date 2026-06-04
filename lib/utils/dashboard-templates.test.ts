@@ -24,11 +24,11 @@ describe('Dashboard Templates', () => {
       expect(energy?.category).toBe('energy');
     });
 
-    it('should have Environmental Sensors template', () => {
-      const environmental = dashboardTemplates.find((t) => t.id === 'environmental-sensors');
+    it('should have Environmental Monitoring template', () => {
+      const environmental = dashboardTemplates.find((t) => t.id === 'environmental-monitoring');
 
       expect(environmental).toBeDefined();
-      expect(environmental?.name).toBe('Environmental Sensors');
+      expect(environmental?.name).toBe('Environmental Monitoring');
       expect(environmental?.category).toBe('environmental');
     });
 
@@ -37,7 +37,7 @@ describe('Dashboard Templates', () => {
 
       expect(building).toBeDefined();
       expect(building?.name).toBe('Smart Building');
-      expect(building?.category).toBe('building');
+      expect(building?.category).toBe('smart-building');
     });
 
     it('should have Basic Monitoring template', () => {

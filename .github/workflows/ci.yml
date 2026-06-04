@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   frontend:
-    name: Frontend (build + type-check)
+    name: Frontend (type-check + tests + build)
     runs-on: ubuntu-latest
     env:
       NEXT_TELEMETRY_DISABLED: '1'
@@ -22,9 +22,10 @@ jobs:
           node-version: '20'
           cache: npm
       - run: npm ci
-      # `next build` type-checks the app and fails on type/build errors.
-      # (A standalone `tsc --noEmit` is intentionally not used as the gate
-      #  because of pre-existing errors in *.test.ts files.)
+      - name: Type check
+        run: npx tsc --noEmit
+      - name: Unit tests
+        run: npx vitest run
       - name: Build
         run: npm run build
         env:

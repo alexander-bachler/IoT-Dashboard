@@ -292,9 +292,16 @@ für „beide Säulen“; 3–5 schließen die heutigen Stub-Lücken.
   count-gewichtete Re-Aggregation, LTTB-Invarianten inkl. Spike-Erhalt) — lokal
   alle grün; läuft in CI via `pytest` (in `requirements`).
 - **CI-Pipeline** (`.github/workflows/ci.yml`): **drei** Jobs bei jedem Push/PR —
-  Frontend (`npm ci` + `next build`), Backend (`pytest`) und **Integration**
-  (TimescaleDB-Service → Drizzle-SQL-Migrations via `psql` → FastAPI per
-  `uvicorn` → `smoke_test.py`). **Alle drei grün auf echtem CI verifiziert.**
+  Frontend (`npm ci` → `tsc --noEmit` → `vitest run` → `next build`), Backend
+  (`pytest`) und **Integration** (TimescaleDB-Service → Drizzle-SQL-Migrations
+  via `psql` → FastAPI per `uvicorn` → `smoke_test.py`). **Alle grün auf echtem
+  CI verifiziert.**
+- **Test-Schuld getilgt**: die vormals 27 `tsc`-Fehler und 10 fehlschlagenden
+  Vitest-Tests behoben — Ursachen waren Test-Drift, kein Store-Reset
+  (`resetRateLimitStore()` ergänzt), eine fehlende `getDashboardTemplate()`-
+  Helferfunktion und eine Null-Varianz-Baseline im Anomalie-Test. Jetzt
+  **`tsc --noEmit` = 0 Fehler** und **63/63 Vitest-Tests grün**, beide als
+  CI-Gates erzwungen.
 - **E2E-Smoke-Test** (`backend/scripts/smoke_test.py`): dependency-freies
   stdlib-Skript gegen einen **laufenden** Stack — Login (OAuth2 password grant),
   Read-Endpunkte (data-sources/devices/metrics/dashboards/anomalies-stats),
