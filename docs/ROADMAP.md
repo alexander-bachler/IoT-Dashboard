@@ -284,6 +284,13 @@ für „beide Säulen“; 3–5 schließen die heutigen Stub-Lücken.
     `status` → Home-Stats und Manager-Kacheln zeigten 0/„Errors". Typ, Service,
     Home-Seite und Manager auf Array + `is_active` ausgerichtet.
   - Verifiziert: tsc (keine neuen Fehler), `next build` grün.
+- **Reine Time-Series-Logik extrahiert + getestet**: LTTB, Intervall-
+  Normalisierung (inkl. Injection-sicherer Whitelist) und Cagg-Auswahl liegen
+  jetzt dependency-frei in `backend/app/services/timeseries.py`; `measurements.py`
+  importiert sie. Neue pytest-Suite `backend/tests/test_timeseries.py`
+  (11 Tests: Short/ISO-Intervalle, Default/Injection-Fallback, Cagg-Routing,
+  count-gewichtete Re-Aggregation, LTTB-Invarianten inkl. Spike-Erhalt) — lokal
+  alle grün; läuft in CI via `pytest` (in `requirements`).
 
 **Noch offen (Phase 2, Auswahl):**
 - Dashboard-**Variablen** (z. B. `$device`) mit Auto-Binding an Widgets &
