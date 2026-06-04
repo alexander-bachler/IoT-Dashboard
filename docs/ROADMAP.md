@@ -295,7 +295,16 @@ für „beide Säulen“; 3–5 schließen die heutigen Stub-Lücken.
   (`npm ci` + `next build` als Typecheck-/Build-Gate; bewusst kein nacktes
   `tsc`, da Test-Dateien vorbestehende Fehler haben) und Backend
   (`pip install -r backend/requirements.txt` + `pytest`). Erzwingt den
-  aufgebauten Verifikations-Stand bei jedem Push/PR.
+  aufgebauten Verifikations-Stand bei jedem Push/PR. **Verifiziert**: Lauf #1
+  Backend-Job grün auf echtem CI; `pytest`-Collection via `backend/pytest.ini`
+  auf `tests/` eingegrenzt.
+- **E2E-Smoke-Test** (`backend/scripts/smoke_test.py`): dependency-freies
+  stdlib-Skript gegen einen **laufenden** Stack — Login (OAuth2 password grant),
+  Read-Endpunkte (data-sources/devices/metrics/dashboards/anomalies-stats),
+  Measurements-Kette (device→metrics→time-series mit `interval=1h`) und ein
+  **Dashboard-CRUD-Round-Trip**, der den `config`/UUID-Contract end-to-end
+  prüft. Exit≠0 bei Fehlern (CI/cron-tauglich). Schließt die einzige
+  verbleibende Verifikationslücke, sobald der Stack läuft.
 
 **Noch offen (Phase 2, Auswahl):**
 - Dashboard-**Variablen** (z. B. `$device`) mit Auto-Binding an Widgets &
