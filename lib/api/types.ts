@@ -305,6 +305,73 @@ export interface AlertEvaluationResult {
 }
 
 // ============================================
+// Report Types
+// ============================================
+
+export interface Report {
+  id: string;
+  name: string;
+  description?: string;
+  schedule: string; // cron
+  type: string; // dashboard | metrics | alerts
+  format: string; // pdf | excel | json
+  recipients: string[];
+  configuration: Record<string, any>;
+  is_active: boolean;
+  last_run?: string;
+  next_run?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface CreateReportDto {
+  name: string;
+  description?: string;
+  schedule: string;
+  type: string;
+  format: string;
+  recipients: string[];
+  configuration: Record<string, any>;
+  is_active?: boolean;
+}
+
+export interface ReportHistoryEntry {
+  id: string;
+  report_id: string;
+  status: string;
+  file_path?: string;
+  file_size?: string;
+  error_message?: string;
+  started_at: string;
+  completed_at?: string;
+}
+
+export interface ReportSection {
+  metric_id: string;
+  metric_name?: string;
+  unit?: string;
+  stats: {
+    count: number | null;
+    min: number | null;
+    max: number | null;
+    avg: number | null;
+    sum: number | null;
+  };
+}
+
+export interface ReportGenerationResult {
+  report_id: string;
+  generated_at: string;
+  type: string;
+  format: string;
+  sections: ReportSection[];
+  csv: string;
+  delivered: boolean;
+  note: string;
+}
+
+// ============================================
 // Chart Configuration Types
 // ============================================
 

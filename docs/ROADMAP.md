@@ -19,7 +19,7 @@
 | Zeitreihen-Analyse | ✅ funktionsfähig | TimescaleDB (Continuous Aggregates + `time_bucket`, LTTB für Rohdaten) → FastAPI → ECharts | Saved Views noch client-seitig (localStorage), nicht cross-device |
 | Dashboards | ✅ funktionsfähig | Postgres via FastAPI + Zustand/localStorage | globaler Zeitraum- & Data-Source-Filter vorhanden; Templates ohne Auto-Binding, kein Sharing |
 | Calculations | ✅ funktionsfähig | FastAPI (`/calculations`) + Formel-Engine + Editor mit Charts + **als Dashboard-Widget** nutzbar | — |
-| Reports | ⚙️ Backend (Definitionen + Generierung) | FastAPI (`/reports`) + Statistik/CSV-Generator | Frontend; Scheduler/PDF/Excel/Mail = Stub |
+| Reports | ✅ funktionsfähig | FastAPI (`/reports`) + Generator + Frontend (Definitionen, Generate-Vorschau, CSV) | Scheduler/PDF/Excel/Mail = Stub |
 | Alerts/Rules | ✅ funktionsfähig | FastAPI (`/alerts`) + Engine + Frontend (Rules/Events/Acknowledge) | Auswertung bei Ingest + echter Notification-Versand offen (Stub) |
 | LineMetrics-Anbindung | ✅ neu verdrahtet | FastAPI (OAuth2 password grant) | E2E-Test gegen echte API ausstehend |
 
@@ -354,9 +354,14 @@ für „beide Säulen“; 3–5 schließen die heutigen Stub-Lücken.
   getestet, CRUD+Generate im Live-E2E-Smoke-Test. **Stubs:** Cron-Scheduler,
   PDF/Excel-Rendering, Mailversand (`delivered=False` + Hinweis).
 
+- **Reports – Frontend** (`app/reports/page.tsx`): Definitionen-Liste/Anlegen
+  (Cron, Typ, Format, Empfänger, Geräte-/Metrik-Picker für die Config),
+  **Generate** mit Sections-Statistik-Tabelle und **CSV-Download**. Build/tsc/
+  vitest grün.
+
 **Noch offen (Phase 2, Auswahl):**
-- **Reports – Frontend**: `app/reports/page.tsx` (Mock) an das Backend anbinden
-  (Definitionen, Generate-Vorschau, CSV-Download).
+- **Reports**: Cron-Scheduler (Auto-Run) + echtes PDF/Excel-Rendering +
+  Mailversand statt Stub.
 - **Alerts**: Auswertung bei Ingest (statt manuellem Evaluate) + echter
   Notification-Versand (E-Mail/Webhook) statt Stub.
 - Calculation-Ergebnisse als **Dashboard-Widget** verwendbar machen (auf der

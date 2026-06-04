@@ -111,4 +111,15 @@ export const API_ENDPOINTS = {
     events: '/api/v1/alerts/events',
     acknowledge: (id: string) => `/api/v1/alerts/events/${id}/acknowledge`,
   },
+
+  // Reports
+  reports: {
+    list: '/api/v1/reports',
+    create: '/api/v1/reports',
+    get: (id: string) => `/api/v1/reports/${id}`,
+    update: (id: string) => `/api/v1/reports/${id}`,
+    delete: (id: string) => `/api/v1/reports/${id}`,
+    generate: (id: string) => `/api/v1/reports/${id}/generate`,
+    history: (id: string) => `/api/v1/reports/${id}/history`,
+  },
 } as const;
