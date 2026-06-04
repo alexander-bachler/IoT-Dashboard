@@ -29,15 +29,29 @@ from datetime import datetime, timedelta, timezone
 API = "/api/v1"
 
 
+class _NoAutoRedirect(urllib.request.HTTPRedirectHandler):
+    """Disable urllib's automatic redirects so we follow them explicitly,
+    preserving the HTTP method and body across 307/308 (FastAPI redirects
+    e.g. POST /dashboards -> /dashboards/ for trailing slashes)."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 class Client:
     def __init__(self, base_url: str, token: str | None = None, timeout: float = 15.0):
         self.base_url = base_url.rstrip("/")
         self.token = token
         self.timeout = timeout
+        self._opener = urllib.request.build_opener(_NoAutoRedirect)
 
-    def request(self, method: str, path: str, *, json_body=None, form_body=None):
-        """Return (status_code, parsed_body). Never raises for HTTP errors."""
-        url = f"{self.base_url}{path}"
+    def request(self, method: str, path: str, *, json_body=None, form_body=None, _depth: int = 0):
+        """Return (status_code, parsed_body). Never raises for HTTP errors.
+
+        Follows 301/302/303/307/308 manually (preserving method+body except for
+        303, which becomes GET) so trailing-slash redirects don't break POSTs.
+        """
+        url = path if path.startswith("http") else f"{self.base_url}{path}"
         headers = {"Accept": "application/json"}
         data = None
         if json_body is not None:
@@ -51,10 +65,19 @@ class Client:
 
         req = urllib.request.Request(url, data=data, headers=headers, method=method)
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            with self._opener.open(req, timeout=self.timeout) as resp:
                 raw = resp.read().decode() or ""
                 return resp.status, _parse(raw)
         except urllib.error.HTTPError as e:
+            if e.code in (301, 302, 303, 307, 308) and _depth < 4:
+                location = e.headers.get("Location")
+                if location:
+                    nxt = urllib.parse.urljoin(url, location)
+                    if e.code == 303:
+                        return self.request("GET", nxt, _depth=_depth + 1)
+                    return self.request(
+                        method, nxt, json_body=json_body, form_body=form_body, _depth=_depth + 1
+                    )
             raw = e.read().decode() if e.fp else ""
             return e.code, _parse(raw)
 
