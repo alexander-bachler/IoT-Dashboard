@@ -298,6 +298,49 @@ def _continuous_aggregate_for(pg_interval: str) -> Optional[str]:
     return None
 
 
+def _lttb_indices(xs: List[float], ys: List[float], threshold: int) -> List[int]:
+    """Largest-Triangle-Three-Buckets downsampling.
+
+    Returns the indices of the points to keep (in order), always preserving the
+    first and last point and choosing the visually most significant point in
+    each bucket. This is near-lossless for line charts: it keeps peaks/troughs
+    that naive every-nth-point sampling would drop. Input must be sorted by x.
+    """
+    n = len(xs)
+    if threshold <= 2 or threshold >= n:
+        return list(range(n))
+
+    sampled = [0]  # always keep the first point
+    bucket_size = (n - 2) / (threshold - 2)
+    a = 0  # index of the previously selected point
+
+    for i in range(threshold - 2):
+        # Average point of the next bucket — the triangle's third vertex.
+        start = int((i + 1) * bucket_size) + 1
+        end = min(int((i + 2) * bucket_size) + 1, n)
+        count = max(end - start, 1)
+        avg_x = sum(xs[start:end]) / count
+        avg_y = sum(ys[start:end]) / count
+
+        # Pick the point in the current bucket that forms the largest triangle
+        # with the previously selected point and the next bucket's average.
+        range_from = int(i * bucket_size) + 1
+        range_to = int((i + 1) * bucket_size) + 1
+        ax, ay = xs[a], ys[a]
+        max_area = -1.0
+        chosen = range_from
+        for j in range(range_from, range_to):
+            area = abs((ax - avg_x) * (ys[j] - ay) - (ax - xs[j]) * (avg_y - ay))
+            if area > max_area:
+                max_area = area
+                chosen = j
+        sampled.append(chosen)
+        a = chosen
+
+    sampled.append(n - 1)  # always keep the last point
+    return sampled
+
+
 
 def _to_pg_interval(value: Optional[str], default: str = "1 hour") -> str:
     """Normalise a short/ISO interval (e.g. '15m', 'PT15M', '1h', 'P1D') to a
@@ -444,10 +487,17 @@ async def get_time_series(
     interval: Optional[str] = None,
     aggregation: Optional[str] = None,
     limit: Optional[int] = 10000,
+    max_points: Optional[int] = 2000,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Time-series for one or more metrics; aggregated when an interval is given."""
+    """Time-series for one or more metrics.
+
+    When an `interval` is given the data is aggregated (served from the
+    continuous aggregates where possible). Otherwise raw points are returned,
+    reduced per-metric to `max_points` via LTTB so large ranges stay responsive
+    without losing the shape of the signal.
+    """
     owned = await _owned_metrics(db, current_user, _parse_uuid_csv(metric_ids))
     if not owned:
         return []
@@ -469,17 +519,33 @@ async def get_time_series(
         stmt = stmt.limit(limit)
 
     rows = (await db.execute(stmt)).scalars().all()
-    series: Dict[UUID, TimeSeriesData] = {}
+
+    # Group rows per metric (preserving time order) so LTTB runs per series.
+    grouped: Dict[UUID, List[Measurement]] = {}
     for mrow in rows:
-        name, unit, _ = owned[mrow.metric_id]
-        s = series.get(mrow.metric_id)
-        if s is None:
-            s = TimeSeriesData(metric_id=mrow.metric_id, metric_name=name, metric_unit=unit, data=[])
-            series[mrow.metric_id] = s
-        s.data.append(
-            TimeSeriesDataPoint(time=mrow.time.isoformat(), value=float(mrow.value), quality=mrow.quality)
+        grouped.setdefault(mrow.metric_id, []).append(mrow)
+
+    series: List[TimeSeriesData] = []
+    for metric_id, mrows in grouped.items():
+        name, unit, _ = owned[metric_id]
+        if max_points and len(mrows) > max_points:
+            xs = [m.time.timestamp() for m in mrows]
+            ys = [float(m.value) for m in mrows]
+            mrows = [mrows[k] for k in _lttb_indices(xs, ys, max_points)]
+        series.append(
+            TimeSeriesData(
+                metric_id=metric_id,
+                metric_name=name,
+                metric_unit=unit,
+                data=[
+                    TimeSeriesDataPoint(
+                        time=m.time.isoformat(), value=float(m.value), quality=m.quality
+                    )
+                    for m in mrows
+                ],
+            )
         )
-    return list(series.values())
+    return series
 
 
 @router.get("/downsample", response_model=List[TimeSeriesData])

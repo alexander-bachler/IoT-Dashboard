@@ -16,7 +16,7 @@
 
 | Bereich | Status | Persistenz | Zentrale Lücke |
 |---|---|---|---|
-| Zeitreihen-Analyse | ✅ funktionsfähig | TimescaleDB (Continuous Aggregates + `time_bucket`) → FastAPI → ECharts | kein LTTB-Downsampling, keine gespeicherten Ansichten |
+| Zeitreihen-Analyse | ✅ funktionsfähig | TimescaleDB (Continuous Aggregates + `time_bucket`, LTTB für Rohdaten) → FastAPI → ECharts | keine gespeicherten Ansichten (Saved Views) |
 | Dashboards | ✅ funktionsfähig | Postgres via FastAPI + Zustand/localStorage | Templates ohne Auto-Binding, keine Variablen/Filter, kein Sharing |
 | Calculations | ❌ Stub | nur Schema | keine Formel-Engine, kein Runner, kein Backend |
 | Reports | ❌ Stub | nur Schema | kein Scheduler, keine PDF/Excel-Erzeugung, kein Mailversand |
@@ -227,13 +227,22 @@ für „beide Säulen“; 3–5 schließen die heutigen Stub-Lücken.
   Beim Re-Bucketing der Views wird **count-gewichtet** aggregiert
   (`SUM(avg_value*count)/SUM(count)`), sodass das Ergebnis exakt dem Rohdaten-
   Aggregat entspricht (kein „Average-of-Averages“).
+- **LTTB-Downsampling** für den Rohdatenpfad von `GET /time-series`: ohne
+  `interval` werden Rohpunkte pro Metrik per Largest-Triangle-Three-Buckets auf
+  `max_points` (Default 2000) reduziert — visuell verlustarm (Peaks/Täler
+  bleiben erhalten) statt simplem `limit`-Abschneiden. Reiner Algorithmus,
+  standalone getestet (Länge, Endpunkt-Erhalt, Spike-Erhalt).
 - Latente Bugs in den Legacy-Measurement-Endpunkten gefixt
   (`POST /query`, `GET /stats`): `Measurement.timestamp`/`.id` → korrekte
   Spalte `time` (verhinderte sonst Laufzeit-`AttributeError`).
+- **UI auf „cleaner SaaS“ umgestellt** (eigener `frontend-design`-Skill):
+  neutrale Flächen, eine Akzentfarbe, responsive Navigation inkl. aller Routen,
+  theme-fähiger ETL-Node-Editor. Production-Build (`next build`) grün.
 
 **Noch offen (Phase 1):**
-- **LTTB-Downsampling** für rohe/feingranulare Bereiche (visuell verlustarme
-  Punktreduktion), ergänzend zur Cagg-Aggregation.
+- **Per-Metrik-Limit** im Rohdatenpfad: das globale `LIMIT` greift bei
+  Multi-Metrik-Abfragen über alle Reihen gemeinsam (Window-Function/Subquery je
+  Metrik nötig). LTTB mildert, behebt es aber nicht.
 - **Freshness-Hinweis:** Die Cagg-Refresh-Policies haben `end_offset` (1h/1d);
   je nach TimescaleDB-Realtime-Setting kann der jeweils letzte Bucket aus
   Rohdaten ergänzt werden. Für Live-Kurzbereiche greift ohnehin der Rohdaten-
