@@ -200,9 +200,13 @@ async def update_anomaly(
 
     update_data = anomaly_in.model_dump(exclude_unset=True)
 
-    # Set acknowledged timestamp if acknowledging
-    if "acknowledged" in update_data and update_data["acknowledged"]:
+    # acknowledged_by is authoritative from the authenticated user, never the client
+    update_data.pop("acknowledged_by", None)
+
+    # Set acknowledged metadata from the auth context when acknowledging
+    if update_data.get("acknowledged"):
         anomaly.acknowledged_at = datetime.utcnow()
+        anomaly.acknowledged_by = current_user.id
 
     for field, value in update_data.items():
         setattr(anomaly, field, value)

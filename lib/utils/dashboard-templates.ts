@@ -317,6 +317,13 @@ export function getTemplateById(id: string): DashboardTemplate | undefined {
 }
 
 /**
+ * Get a single template by its id (or undefined if not found).
+ */
+export function getDashboardTemplate(id: string): DashboardTemplate | undefined {
+  return dashboardTemplates.find((t) => t.id === id);
+}
+
+/**
  * Get templates by category
  */
 export function getTemplatesByCategory(

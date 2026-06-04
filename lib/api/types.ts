@@ -6,7 +6,7 @@ export interface DataSource {
   id: string;
   name: string;
   type: 'api' | 'mqtt' | 'database' | 'file';
-  status: 'active' | 'inactive' | 'error';
+  is_active: boolean;
   api_url?: string;
   api_token?: string;
   description?: string;
@@ -142,8 +142,8 @@ export interface AnomalyQueryParams {
 }
 
 export interface UpdateAnomalyDto {
-  status?: 'new' | 'acknowledged' | 'resolved' | 'false_positive';
-  acknowledged_by?: string;
+  // acknowledged_by is set server-side from the authenticated user
+  acknowledged?: boolean;
 }
 
 // ============================================
@@ -154,15 +154,24 @@ export interface Dashboard {
   id: string;
   name: string;
   description?: string;
-  layout: DashboardLayout;
+  // The FastAPI backend stores the layout + settings in a free-form `config`.
+  config: DashboardLayout;
+  is_favorite?: boolean;
   is_public?: boolean;
-  created_by?: string;
+  owner_id?: string;
   created_at: string;
   updated_at?: string;
 }
 
+export interface DashboardSettings {
+  globalTimeRange?: string | null;
+  globalRefreshInterval?: number;
+  selectedDataSourceIds?: string[];
+}
+
 export interface DashboardLayout {
   widgets: DashboardWidget[];
+  settings?: DashboardSettings;
 }
 
 export interface DashboardWidget {
@@ -181,8 +190,185 @@ export interface DashboardWidget {
 export interface CreateDashboardDto {
   name: string;
   description?: string;
-  layout: DashboardLayout;
+  config: DashboardLayout;
+  is_favorite?: boolean;
   is_public?: boolean;
+}
+
+// ============================================
+// Calculation Types
+// ============================================
+
+export interface Calculation {
+  id: string;
+  name: string;
+  description?: string;
+  formula: string;
+  /** variable name -> source metric id */
+  source_metric_ids: Record<string, string>;
+  unit?: string;
+  aggregation_type: string; // none | sum | avg | min | max
+  created_by?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface CreateCalculationDto {
+  name: string;
+  description?: string;
+  formula: string;
+  source_metric_ids: Record<string, string>;
+  unit?: string;
+  aggregation_type?: string;
+}
+
+export interface CalculationPreviewDto {
+  formula: string;
+  source_metric_ids: Record<string, string>;
+  start_time?: string;
+  end_time?: string;
+  interval?: string;
+  aggregation_type?: string;
+}
+
+export interface CalculationResult {
+  name?: string;
+  unit?: string;
+  interval: string;
+  data: Array<{ time: string; value: number }>;
+  aggregate?: number | null;
+  points: number;
+}
+
+// ============================================
+// Alert Types
+// ============================================
+
+export type AlertCondition =
+  | 'greater_than'
+  | 'less_than'
+  | 'greater_or_equal'
+  | 'less_or_equal'
+  | 'equal_to'
+  | 'not_equal_to';
+
+export type AlertSeverity = 'info' | 'warning' | 'critical';
+
+export interface AlertRule {
+  id: string;
+  name: string;
+  description?: string;
+  metric_id: string;
+  device_id?: string;
+  condition: AlertCondition;
+  threshold: number;
+  duration?: string;
+  severity: AlertSeverity;
+  notification_channels?: string[];
+  notification_config?: Record<string, any>;
+  is_active: boolean;
+  last_triggered?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface CreateAlertRuleDto {
+  name: string;
+  description?: string;
+  metric_id: string;
+  device_id?: string;
+  condition: AlertCondition;
+  threshold: number;
+  severity: AlertSeverity;
+  notification_channels?: string[];
+  is_active?: boolean;
+}
+
+export interface AlertEvent {
+  id: string;
+  alert_rule_id: string;
+  triggered_at: string;
+  resolved_at?: string;
+  measurement_value: number;
+  measurement_time: string;
+  status: 'active' | 'resolved' | 'acknowledged';
+  acknowledged_by?: string;
+  acknowledged_at?: string;
+  created_at: string;
+}
+
+export interface AlertEvaluationResult {
+  rule_id: string;
+  evaluated_points: number;
+  breaches: number;
+  events: AlertEvent[];
+}
+
+// ============================================
+// Report Types
+// ============================================
+
+export interface Report {
+  id: string;
+  name: string;
+  description?: string;
+  schedule: string; // cron
+  type: string; // dashboard | metrics | alerts
+  format: string; // pdf | excel | json
+  recipients: string[];
+  configuration: Record<string, any>;
+  is_active: boolean;
+  last_run?: string;
+  next_run?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface CreateReportDto {
+  name: string;
+  description?: string;
+  schedule: string;
+  type: string;
+  format: string;
+  recipients: string[];
+  configuration: Record<string, any>;
+  is_active?: boolean;
+}
+
+export interface ReportHistoryEntry {
+  id: string;
+  report_id: string;
+  status: string;
+  file_path?: string;
+  file_size?: string;
+  error_message?: string;
+  started_at: string;
+  completed_at?: string;
+}
+
+export interface ReportSection {
+  metric_id: string;
+  metric_name?: string;
+  unit?: string;
+  stats: {
+    count: number | null;
+    min: number | null;
+    max: number | null;
+    avg: number | null;
+    sum: number | null;
+  };
+}
+
+export interface ReportGenerationResult {
+  report_id: string;
+  generated_at: string;
+  type: string;
+  format: string;
+  sections: ReportSection[];
+  csv: string;
+  delivered: boolean;
+  note: string;
 }
 
 // ============================================

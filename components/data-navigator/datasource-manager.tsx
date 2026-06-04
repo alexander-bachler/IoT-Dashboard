@@ -80,7 +80,7 @@ function DataSourceCard({ source }: { source: any }) {
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-600/20">
+            <div className="p-2 rounded-lg bg-muted">
               <Database className="h-5 w-5 text-blue-500" />
             </div>
             <div>
@@ -220,6 +220,8 @@ function AddDataSourceDialog({ open, onOpenChange, onSuccess }: { open: boolean;
   const [apiToken, setApiToken] = useState('');
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
+  const [lmUsername, setLmUsername] = useState('');
+  const [lmPassword, setLmPassword] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -236,6 +238,8 @@ function AddDataSourceDialog({ open, onOpenChange, onSuccess }: { open: boolean;
           api_url: apiUrl,
           client_id: clientId,
           client_secret: clientSecret,
+          username: lmUsername,
+          password: lmPassword,
         });
 
         const result = response.data;
@@ -330,6 +334,8 @@ function AddDataSourceDialog({ open, onOpenChange, onSuccess }: { open: boolean;
     setApiToken('');
     setClientId('');
     setClientSecret('');
+    setLmUsername('');
+    setLmPassword('');
     setDescription('');
     setSelectedFile(null);
   };
@@ -343,7 +349,7 @@ function AddDataSourceDialog({ open, onOpenChange, onSuccess }: { open: boolean;
 
   const isSubmitDisabled = () => {
     if (type === 'linemetrics') {
-      return !name || !apiUrl || !clientId || !clientSecret || loading;
+      return !name || !apiUrl || !clientId || !clientSecret || !lmUsername || !lmPassword || loading;
     }
     if (type === 'file') {
       return !name || loading;
@@ -471,6 +477,31 @@ function AddDataSourceDialog({ open, onOpenChange, onSuccess }: { open: boolean;
                   placeholder="Your LineMetrics OAuth2 Client Secret"
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="lmUsername">Username (Email) *</Label>
+                <Input
+                  id="lmUsername"
+                  value={lmUsername}
+                  onChange={(e) => setLmUsername(e.target.value)}
+                  placeholder="Your LineMetrics account email"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="lmPassword">Password *</Label>
+                <Input
+                  id="lmPassword"
+                  type="password"
+                  value={lmPassword}
+                  onChange={(e) => setLmPassword(e.target.value)}
+                  placeholder="Your LineMetrics account password"
+                />
+                <p className="text-xs text-muted-foreground">
+                  LineMetrics uses the OAuth2 password grant; credentials are stored
+                  server-side with this connection.
+                </p>
+              </div>
             </>
           ) : (
             <>
@@ -524,8 +555,8 @@ function AddDataSourceDialog({ open, onOpenChange, onSuccess }: { open: boolean;
 function StatsCards({ dataSources }: { dataSources: any[] }) {
   if (!dataSources || dataSources.length === 0) return null;
 
-  const activeCount = dataSources.filter((s) => s?.status === 'active').length;
-  const errorCount = dataSources.filter((s) => s?.status === 'error').length;
+  const activeCount = dataSources.filter((s) => s?.is_active).length;
+  const inactiveCount = dataSources.filter((s) => !s?.is_active).length;
   const totalDevices = dataSources.reduce((acc, s) => acc + (s?.device_count || 0), 0);
 
   return (
@@ -556,12 +587,12 @@ function StatsCards({ dataSources }: { dataSources: any[] }) {
 
       <div className="metric-card hover-scale">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-red-500/20">
-            <XCircle className="h-5 w-5 text-red-500" />
+          <div className="p-2 rounded-lg bg-muted">
+            <XCircle className="h-5 w-5 text-muted-foreground" />
           </div>
           <div>
-            <div className="text-sm text-muted-foreground">Errors</div>
-            <div className="text-2xl font-bold gradient-text">{errorCount}</div>
+            <div className="text-sm text-muted-foreground">Inactive</div>
+            <div className="text-2xl font-bold gradient-text">{inactiveCount}</div>
           </div>
         </div>
       </div>
@@ -596,8 +627,8 @@ export function DataSourceManager() {
     { enabled: isAuthenticated && mounted }
   );
 
-  // API returns array directly, not paginated object
-  const dataSources = Array.isArray(data) ? data : (data?.data ?? []);
+  // API returns an array directly.
+  const dataSources = data ?? [];
 
   const handleAddSuccess = () => {
     refetch();

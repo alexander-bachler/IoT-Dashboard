@@ -29,6 +29,8 @@ export interface WidgetConfig {
   chartType: ChartType;
   deviceId: string;
   metricIds: string[];
+  /** When set, the widget renders this saved calculation instead of metrics. */
+  calculationId?: string;
   timeRange: {
     type: 'relative' | 'absolute';
     value: string; // e.g., 'last_24h' or ISO timestamp
@@ -59,6 +61,18 @@ export interface DashboardState {
   // Data Source Filter
   selectedDataSourceIds: string[];
   setSelectedDataSourceIds: (ids: string[]) => void;
+
+  // Global dashboard time range. When set, every widget uses it instead of its
+  // own time range; null means each widget keeps its individual range.
+  globalTimeRange: string | null;
+  setGlobalTimeRange: (value: string | null) => void;
+
+  // Global auto-refresh interval in seconds (0 = off) and a manual refresh
+  // trigger. Widgets watch `refreshNonce` to refetch in lock-step.
+  globalRefreshInterval: number;
+  setGlobalRefreshInterval: (seconds: number) => void;
+  refreshNonce: number;
+  triggerRefresh: () => void;
 
   // Reset
   reset: () => void;
@@ -113,6 +127,14 @@ export const useDashboardStore = create<DashboardState>()(
       selectedDataSourceIds: [],
       setSelectedDataSourceIds: (ids) => set({ selectedDataSourceIds: ids }),
 
+      globalTimeRange: null,
+      setGlobalTimeRange: (value) => set({ globalTimeRange: value }),
+
+      globalRefreshInterval: 0,
+      setGlobalRefreshInterval: (seconds) => set({ globalRefreshInterval: seconds }),
+      refreshNonce: 0,
+      triggerRefresh: () => set((state) => ({ refreshNonce: state.refreshNonce + 1 })),
+
       reset: () =>
         set({
           currentDashboardId: null,
@@ -120,10 +142,22 @@ export const useDashboardStore = create<DashboardState>()(
           widgets: [],
           isEditMode: false,
           selectedDataSourceIds: [],
+          globalTimeRange: null,
+          globalRefreshInterval: 0,
         }),
     }),
     {
       name: 'dashboard-store',
+      // Persist data/config only — never the transient refresh trigger.
+      partialize: (state) => ({
+        currentDashboardId: state.currentDashboardId,
+        layout: state.layout,
+        widgets: state.widgets,
+        isEditMode: state.isEditMode,
+        selectedDataSourceIds: state.selectedDataSourceIds,
+        globalTimeRange: state.globalTimeRange,
+        globalRefreshInterval: state.globalRefreshInterval,
+      }),
     }
   )
 );

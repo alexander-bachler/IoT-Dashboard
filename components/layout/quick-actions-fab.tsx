@@ -110,14 +110,12 @@ export function QuickActionsFAB() {
                 <Button
                   size="icon"
                   className={cn(
-                    'h-12 w-12 rounded-full shadow-glow-lg',
-                    'bg-gradient-to-r',
-                    action.color,
-                    'hover:scale-110 transition-transform'
+                    'h-12 w-12 rounded-full shadow-md',
+                    'bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors'
                   )}
                   onClick={action.action}
                 >
-                  <Icon className="h-5 w-5 text-white" />
+                  <Icon className="h-5 w-5" />
                 </Button>
               </div>
             );
@@ -129,17 +127,16 @@ export function QuickActionsFAB() {
       <Button
         size="icon"
         className={cn(
-          'h-14 w-14 rounded-full shadow-glow-lg',
-          'bg-gradient-to-r from-blue-500 to-purple-600',
-          'hover:scale-110 transition-all duration-300',
+          'h-14 w-14 rounded-full shadow-md',
+          'bg-primary text-primary-foreground hover:bg-primary/90 transition-transform duration-200',
           isOpen && 'rotate-45'
         )}
         onClick={() => setIsOpen(!isOpen)}
       >
         {isOpen ? (
-          <X className="h-6 w-6 text-white" />
+          <X className="h-6 w-6" />
         ) : (
-          <Plus className="h-6 w-6 text-white" />
+          <Plus className="h-6 w-6" />
         )}
       </Button>
     </div>

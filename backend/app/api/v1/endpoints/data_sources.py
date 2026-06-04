@@ -21,9 +21,17 @@ from app.api.v1.endpoints.auth import get_current_user
 
 router = APIRouter()
 
-# Configure upload directory
-UPLOAD_DIR = Path("/home/user/IoT-Dashboard/backend/data/uploads")
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+# Upload directory. Configurable via the UPLOAD_DIR env var; defaults to
+# <backend>/data/uploads resolved relative to this file so it works on any host
+# (dev, CI, prod) rather than a machine-specific absolute path.
+_DEFAULT_UPLOAD_DIR = Path(__file__).resolve().parents[4] / "data" / "uploads"
+UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", str(_DEFAULT_UPLOAD_DIR)))
+try:
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+except OSError:
+    # Never block app startup on this; the upload endpoints create their
+    # per-user/per-source subdirectories lazily and surface errors there.
+    pass
 ALLOWED_EXTENSIONS = {'.csv', '.xlsx', '.xls', '.json', '.parquet'}
 
 

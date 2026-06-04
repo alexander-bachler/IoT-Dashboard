@@ -15,13 +15,10 @@ export default function DataNavigatorPage() {
     <div className="container mx-auto p-6 space-y-6 animate-fade-in">
       {/* Header Section */}
       <div className="relative">
-        <div className="absolute -top-4 -left-4 w-72 h-72 bg-blue-500/20 rounded-full blur-3xl" />
-        <div className="absolute -top-4 -right-4 w-72 h-72 bg-purple-500/20 rounded-full blur-3xl" />
-
-        <div className="relative data-card">
+        <div className="data-card">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600">
-              <Sparkles className="h-6 w-6 text-white" />
+            <div className="p-2 rounded-xl bg-primary">
+              <Sparkles className="h-6 w-6 text-primary-foreground" />
             </div>
             <h1 className="section-header mb-0">Data Navigator</h1>
           </div>
@@ -36,28 +33,28 @@ export default function DataNavigatorPage() {
         <TabsList className="grid w-full max-w-3xl grid-cols-4 h-auto p-1 glass-card">
           <TabsTrigger
             value="datasources"
-            className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500/20 data-[state=active]:to-purple-600/20 data-[state=active]:shadow-glow-sm py-3"
+            className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm py-3"
           >
             <Server className="h-4 w-4" />
             <span>Data Sources</span>
           </TabsTrigger>
           <TabsTrigger
             value="schema"
-            className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500/20 data-[state=active]:to-purple-600/20 data-[state=active]:shadow-glow-sm py-3"
+            className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm py-3"
           >
             <Database className="h-4 w-4" />
             <span>Schema</span>
           </TabsTrigger>
           <TabsTrigger
             value="etl"
-            className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500/20 data-[state=active]:to-purple-600/20 data-[state=active]:shadow-glow-sm py-3"
+            className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm py-3"
           >
             <Workflow className="h-4 w-4" />
             <span>ETL Designer</span>
           </TabsTrigger>
           <TabsTrigger
             value="metadata"
-            className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500/20 data-[state=active]:to-purple-600/20 data-[state=active]:shadow-glow-sm py-3"
+            className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm py-3"
           >
             <Settings className="h-4 w-4" />
             <span>Metadaten</span>

@@ -81,9 +81,9 @@ function LiveStatsCards() {
     );
   }
 
-  const dataSourcesList = dataSources?.data || [];
-  const totalSources = dataSources?.total || 0;
-  const activeSources = dataSourcesList.filter((s) => s.status === 'active').length;
+  const dataSourcesList = dataSources || [];
+  const totalSources = dataSourcesList.length;
+  const activeSources = dataSourcesList.filter((s) => s.is_active).length;
   const totalDevices = dataSourcesList.reduce((acc, s) => acc + (s.device_count || 0), 0);
   const criticalAnomalies = recentAnomalies?.filter((a) => a.severity === 'critical').length || 0;
 
@@ -148,13 +148,9 @@ export default function Home() {
   return (
     <ErrorBoundary>
       <div className="container mx-auto p-6 space-y-8 animate-fade-in">
-        {/* Gradient orbs for depth */}
-        <div className="absolute -top-4 -left-4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 -right-4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl" />
-
         {/* Hero Section */}
         <div className="relative text-center py-12">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-blue-500/10 to-purple-600/10 border border-blue-500/20 mb-6">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-muted border border-border mb-6">
             <Zap className="h-4 w-4 text-blue-500" />
             <span className="text-sm font-medium">Enterprise IoT Analytics Platform</span>
           </div>
@@ -174,7 +170,7 @@ export default function Home() {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Card className="glass-card hover-scale group">
             <CardHeader>
-              <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-600/20 w-fit mb-4 group-hover:scale-110 transition-transform">
+              <div className="p-3 rounded-xl bg-muted w-fit mb-4">
                 <Database className="h-8 w-8 text-blue-500" />
               </div>
               <CardTitle>Data Sources</CardTitle>
@@ -194,7 +190,7 @@ export default function Home() {
 
           <Card className="glass-card hover-scale group">
             <CardHeader>
-              <div className="p-3 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-600/20 w-fit mb-4 group-hover:scale-110 transition-transform">
+              <div className="p-3 rounded-xl bg-muted w-fit mb-4">
                 <LineChart className="h-8 w-8 text-green-500" />
               </div>
               <CardTitle>Data Explorer</CardTitle>
@@ -214,7 +210,7 @@ export default function Home() {
 
           <Card className="glass-card hover-scale group">
             <CardHeader>
-              <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-600/20 w-fit mb-4 group-hover:scale-110 transition-transform">
+              <div className="p-3 rounded-xl bg-muted w-fit mb-4">
                 <LayoutDashboard className="h-8 w-8 text-purple-500" />
               </div>
               <CardTitle>Dashboards</CardTitle>
@@ -234,7 +230,7 @@ export default function Home() {
 
           <Card className="glass-card hover-scale group">
             <CardHeader>
-              <div className="p-3 rounded-xl bg-gradient-to-br from-orange-500/20 to-red-600/20 w-fit mb-4 group-hover:scale-110 transition-transform">
+              <div className="p-3 rounded-xl bg-muted w-fit mb-4">
                 <AlertTriangle className="h-8 w-8 text-orange-500" />
               </div>
               <CardTitle>Anomaly Detection</CardTitle>
@@ -254,7 +250,7 @@ export default function Home() {
 
           <Card className="glass-card hover-scale group">
             <CardHeader>
-              <div className="p-3 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-600/20 w-fit mb-4 group-hover:scale-110 transition-transform">
+              <div className="p-3 rounded-xl bg-muted w-fit mb-4">
                 <BarChart3 className="h-8 w-8 text-cyan-500" />
               </div>
               <CardTitle>Chart Gallery</CardTitle>
@@ -274,7 +270,7 @@ export default function Home() {
 
           <Card className="glass-card hover-scale group">
             <CardHeader>
-              <div className="p-3 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-600/20 w-fit mb-4 group-hover:scale-110 transition-transform">
+              <div className="p-3 rounded-xl bg-muted w-fit mb-4">
                 <TrendingUp className="h-8 w-8 text-indigo-500" />
               </div>
               <CardTitle>Data Navigator</CardTitle>
@@ -301,7 +297,7 @@ export default function Home() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex items-start gap-4 group">
-              <div className="bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0 font-bold text-lg group-hover:scale-110 transition-transform">
+              <div className="bg-primary text-primary-foreground rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0 font-bold text-lg">
                 1
               </div>
               <div className="flex-1">
@@ -313,7 +309,7 @@ export default function Home() {
             </div>
 
             <div className="flex items-start gap-4 group">
-              <div className="bg-gradient-to-br from-green-500 to-emerald-600 text-white rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0 font-bold text-lg group-hover:scale-110 transition-transform">
+              <div className="bg-primary text-primary-foreground rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0 font-bold text-lg">
                 2
               </div>
               <div className="flex-1">
@@ -325,7 +321,7 @@ export default function Home() {
             </div>
 
             <div className="flex items-start gap-4 group">
-              <div className="bg-gradient-to-br from-orange-500 to-red-600 text-white rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0 font-bold text-lg group-hover:scale-110 transition-transform">
+              <div className="bg-primary text-primary-foreground rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0 font-bold text-lg">
                 3
               </div>
               <div className="flex-1">

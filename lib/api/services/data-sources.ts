@@ -4,7 +4,6 @@ import type {
   DataSource,
   CreateDataSourceDto,
   UpdateDataSourceDto,
-  PaginatedResponse,
   PaginationParams,
 } from '../types';
 
@@ -14,10 +13,10 @@ import type {
 
 export const dataSourcesApi = {
   /**
-   * Get all data sources with pagination
+   * Get all data sources. The backend returns a plain array (owner-scoped).
    */
-  getAll: async (params?: PaginationParams): Promise<PaginatedResponse<DataSource>> => {
-    const response = await apiClient.get<PaginatedResponse<DataSource>>(API_ENDPOINTS.dataSources.list, {
+  getAll: async (params?: PaginationParams): Promise<DataSource[]> => {
+    const response = await apiClient.get<DataSource[]>(API_ENDPOINTS.dataSources.list, {
       params,
     });
     return response.data;

@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { checkRateLimit, withRateLimit, RateLimitPresets } from './rate-limiter';
+import {
+  checkRateLimit,
+  withRateLimit,
+  RateLimitPresets,
+  resetRateLimitStore,
+} from './rate-limiter';
 
 // Helper to create mock Request
 function createMockRequest(ip: string = '127.0.0.1'): Request {
@@ -11,9 +16,13 @@ function createMockRequest(ip: string = '127.0.0.1'): Request {
 }
 
 describe('Rate Limiter', () => {
+  // Reset the module-level store before every test so cases don't leak state.
+  beforeEach(() => {
+    resetRateLimitStore();
+  });
+
   describe('checkRateLimit', () => {
     beforeEach(() => {
-      // Clear rate limit store between tests
       vi.clearAllMocks();
     });
 

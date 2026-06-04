@@ -41,9 +41,8 @@ export function EmptyState({
         className
       )}
     >
-      <div className="relative mb-6">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-600/20 rounded-full blur-2xl" />
-        <div className="relative p-6 rounded-full bg-gradient-to-r from-blue-500/10 to-purple-600/10 border border-blue-500/20">
+      <div className="mb-6">
+        <div className="p-6 rounded-full bg-muted border border-border">
           <Icon className="h-12 w-12 text-muted-foreground" />
         </div>
       </div>
@@ -103,7 +102,7 @@ export function NoAnomaliesState() {
       icon={AlertTriangle}
       title="No Anomalies Detected"
       description="Great news! No anomalies have been detected in your IoT data streams. The system is monitoring all metrics continuously."
-      className="border-green-500/20 bg-gradient-to-br from-green-500/5 to-emerald-500/5"
+      className="border-green-500/20 bg-green-500/5"
     />
   );
 }
@@ -164,7 +163,7 @@ export function ErrorState({
             }
           : undefined
       }
-      className="border-red-500/20 bg-gradient-to-br from-red-500/5 to-orange-500/5"
+      className="border-red-500/20 bg-red-500/5"
     />
   );
 }

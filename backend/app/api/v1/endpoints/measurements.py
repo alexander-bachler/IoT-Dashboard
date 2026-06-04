@@ -4,9 +4,12 @@ Time-series data queries
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from typing import List
-from datetime import datetime
+from sqlalchemy import select, func, text, delete, bindparam
+from typing import List, Optional, Dict, Tuple
+from datetime import datetime, timezone, timedelta
+from uuid import UUID
+from collections import defaultdict
+import logging
 
 from app.db.database import get_db
 from app.models.user import User
@@ -21,8 +24,64 @@ from app.schemas.measurement import (
     MeasurementStats
 )
 from app.api.v1.endpoints.auth import get_current_user
+from app.services.timeseries import (
+    AGG_FUNCS as _AGG_FUNCS,
+    CAGG_VALUE_EXPR as _CAGG_VALUE_EXPR,
+    to_pg_interval as _to_pg_interval,
+    continuous_aggregate_for as _continuous_aggregate_for,
+    lttb_indices as _lttb_indices,
+)
+from app.models.alert import AlertRule, AlertEvent
+from app.services.alert_rules import find_breaches
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# Cap alert events created per ingest call, to avoid floods on bulk inserts.
+_MAX_INGEST_ALERT_EVENTS = 100
+
+
+async def _run_alert_rules(
+    db: AsyncSession, metric_points: Dict[UUID, List[Tuple[datetime, float]]]
+) -> None:
+    """Evaluate active alert rules against freshly-ingested points and record events.
+
+    Best-effort: callers wrap this so a failure never blocks ingestion.
+    """
+    if not metric_points:
+        return
+    rules = (
+        await db.execute(
+            select(AlertRule).where(
+                AlertRule.metric_id.in_(list(metric_points.keys())),
+                AlertRule.is_active.is_(True),
+            )
+        )
+    ).scalars().all()
+    if not rules:
+        return
+
+    now = datetime.now(timezone.utc)
+    created = 0
+    for rule in rules:
+        points = metric_points.get(rule.metric_id, [])
+        breaches = find_breaches(points, rule.condition, rule.threshold)
+        if not breaches:
+            continue
+        for mtime, mvalue in breaches[:_MAX_INGEST_ALERT_EVENTS]:
+            db.add(
+                AlertEvent(
+                    alert_rule_id=rule.id,
+                    triggered_at=now,
+                    measurement_value=mvalue,
+                    measurement_time=mtime,
+                    status="active",
+                )
+            )
+            created += 1
+        rule.last_triggered = now
+    if created:
+        await db.commit()
 
 
 @router.post("/query", response_model=List[TimeSeriesData])
@@ -70,10 +129,10 @@ async def query_time_series(
             select(Measurement)
             .where(
                 Measurement.metric_id == metric_id,
-                Measurement.timestamp >= query.start_time,
-                Measurement.timestamp <= query.end_time
+                Measurement.time >= query.start_time,
+                Measurement.time <= query.end_time
             )
-            .order_by(Measurement.timestamp)
+            .order_by(Measurement.time)
         )
 
         if query.limit:
@@ -85,7 +144,7 @@ async def query_time_series(
         # Convert to data points
         data_points = [
             TimeSeriesDataPoint(
-                time=m.timestamp.isoformat(),
+                time=m.time.isoformat(),
                 value=m.value,
                 quality=m.quality
             )
@@ -131,6 +190,14 @@ async def create_measurement(
     await db.commit()
     await db.refresh(measurement)
 
+    # Auto-evaluate alert rules against the new point (best-effort).
+    try:
+        await _run_alert_rules(
+            db, {measurement.metric_id: [(measurement.time, float(measurement.value))]}
+        )
+    except Exception:  # noqa: BLE001 - never block ingest on alerting
+        logger.warning("Alert evaluation on ingest failed", exc_info=True)
+
     return measurement
 
 
@@ -170,12 +237,21 @@ async def create_measurements_batch(
     db.add_all(measurements)
     await db.commit()
 
+    # Auto-evaluate alert rules against the new points (best-effort).
+    try:
+        metric_points: Dict[UUID, List[Tuple[datetime, float]]] = defaultdict(list)
+        for m in measurements:
+            metric_points[m.metric_id].append((m.time, float(m.value)))
+        await _run_alert_rules(db, metric_points)
+    except Exception:  # noqa: BLE001 - never block ingest on alerting
+        logger.warning("Alert evaluation on batch ingest failed", exc_info=True)
+
     return {"count": len(measurements), "message": "Measurements created successfully"}
 
 
 @router.get("/stats", response_model=MeasurementStats)
 async def get_measurement_stats(
-    metric_id: int,
+    metric_id: UUID,
     start_time: datetime | None = None,
     end_time: datetime | None = None,
     current_user: User = Depends(get_current_user),
@@ -199,19 +275,19 @@ async def get_measurement_stats(
 
     # Build query
     query = select(
-        func.count(Measurement.id).label("count"),
+        func.count(Measurement.time).label("count"),
         func.min(Measurement.value).label("min"),
         func.max(Measurement.value).label("max"),
         func.avg(Measurement.value).label("avg"),
         func.sum(Measurement.value).label("sum"),
-        func.min(Measurement.timestamp).label("first_timestamp"),
-        func.max(Measurement.timestamp).label("last_timestamp"),
+        func.min(Measurement.time).label("first_timestamp"),
+        func.max(Measurement.time).label("last_timestamp"),
     ).where(Measurement.metric_id == metric_id)
 
     if start_time:
-        query = query.where(Measurement.timestamp >= start_time)
+        query = query.where(Measurement.time >= start_time)
     if end_time:
-        query = query.where(Measurement.timestamp <= end_time)
+        query = query.where(Measurement.time <= end_time)
 
     result = await db.execute(query)
     stats = result.one()
@@ -225,3 +301,290 @@ async def get_measurement_stats(
         first_timestamp=stats.first_timestamp,
         last_timestamp=stats.last_timestamp
     )
+
+
+# ---------------------------------------------------------------------------
+# Read endpoints used by the frontend measurements client
+# (time-series / downsample / latest / statistics / range)
+# ---------------------------------------------------------------------------
+
+# Pure helpers (interval normalisation, continuous-aggregate selection, LTTB)
+# live in app.services.timeseries and are imported at the top of this module.
+
+
+def _parse_uuid_csv(value: Optional[str]) -> List[UUID]:
+    """Parse a comma-separated list of UUIDs, skipping invalid entries."""
+    ids: List[UUID] = []
+    for part in (value or "").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            ids.append(UUID(part))
+        except ValueError:
+            continue
+    return ids
+
+
+async def _owned_metrics(
+    db: AsyncSession, user: User, metric_ids: List[UUID]
+) -> Dict[UUID, Tuple[str, Optional[str], UUID]]:
+    """Return {metric_id: (name, unit, device_id)} for metrics owned by the user."""
+    if not metric_ids:
+        return {}
+    result = await db.execute(
+        select(Metric.id, Metric.name, Metric.unit, Metric.device_id)
+        .join(Device, Device.id == Metric.device_id)
+        .join(DataSource, DataSource.id == Device.data_source_id)
+        .where(Metric.id.in_(metric_ids), DataSource.owner_id == user.id)
+    )
+    return {row[0]: (row[1], row[2], row[3]) for row in result.all()}
+
+
+async def _bucketed_series(
+    db: AsyncSession,
+    owned: Dict[UUID, Tuple[str, Optional[str], UUID]],
+    start_time: datetime,
+    end_time: datetime,
+    interval: Optional[str],
+    aggregation: Optional[str],
+) -> List[TimeSeriesData]:
+    """Aggregate measurements into time buckets via TimescaleDB time_bucket().
+
+    For coarse intervals (whole hours/days) the query is served from the
+    pre-materialized continuous aggregates instead of the raw hypertable, which
+    avoids scanning every raw row over long time ranges. Finer/odd intervals
+    fall back to the raw `measurements` table. The view name and aggregation
+    expression come from internal whitelists, and the interval is normalised, so
+    the f-string interpolation below is not user-controlled.
+    """
+    agg = _AGG_FUNCS.get((aggregation or "avg").lower(), "AVG")
+    pg_interval = _to_pg_interval(interval)
+    view = _continuous_aggregate_for(pg_interval)
+
+    if view:
+        value_expr = _CAGG_VALUE_EXPR[agg]
+        stmt = text(
+            f"""
+            SELECT metric_id,
+                   time_bucket(CAST(:interval AS interval), bucket) AS b,
+                   {value_expr} AS value
+            FROM {view}
+            WHERE metric_id IN :ids
+              AND bucket >= :start_time AND bucket <= :end_time
+            GROUP BY metric_id, time_bucket(CAST(:interval AS interval), bucket)
+            ORDER BY b ASC
+            """
+        ).bindparams(bindparam("ids", expanding=True))
+    else:
+        stmt = text(
+            f"""
+            SELECT metric_id,
+                   time_bucket(CAST(:interval AS interval), time) AS b,
+                   {agg}(value) AS value
+            FROM measurements
+            WHERE metric_id IN :ids
+              AND time >= :start_time AND time <= :end_time
+            GROUP BY metric_id, time_bucket(CAST(:interval AS interval), time)
+            ORDER BY b ASC
+            """
+        ).bindparams(bindparam("ids", expanding=True))
+
+    result = await db.execute(
+        stmt,
+        {
+            "interval": pg_interval,
+            "ids": list(owned.keys()),
+            "start_time": start_time,
+            "end_time": end_time,
+        },
+    )
+
+    series: Dict[UUID, TimeSeriesData] = {}
+    for metric_id, bucket, value in result.all():
+        name, unit, _ = owned[metric_id]
+        s = series.get(metric_id)
+        if s is None:
+            s = TimeSeriesData(metric_id=metric_id, metric_name=name, metric_unit=unit, data=[])
+            series[metric_id] = s
+        s.data.append(
+            TimeSeriesDataPoint(
+                time=bucket.isoformat() if bucket else "",
+                value=float(value) if value is not None else 0.0,
+            )
+        )
+    return list(series.values())
+
+
+@router.get("/time-series", response_model=List[TimeSeriesData])
+async def get_time_series(
+    metric_ids: str,
+    start_time: datetime,
+    end_time: datetime,
+    interval: Optional[str] = None,
+    aggregation: Optional[str] = None,
+    limit: Optional[int] = 10000,
+    max_points: Optional[int] = 2000,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Time-series for one or more metrics.
+
+    When an `interval` is given the data is aggregated (served from the
+    continuous aggregates where possible). Otherwise raw points are returned,
+    reduced per-metric to `max_points` via LTTB so large ranges stay responsive
+    without losing the shape of the signal.
+    """
+    owned = await _owned_metrics(db, current_user, _parse_uuid_csv(metric_ids))
+    if not owned:
+        return []
+
+    if interval:
+        return await _bucketed_series(db, owned, start_time, end_time, interval, aggregation)
+
+    # Raw points (no aggregation). Query per metric so both the row cap (`limit`)
+    # and LTTB reduction apply per series — a single shared query with a global
+    # LIMIT would truncate every metric at the same global cut-off, dropping the
+    # tail of all series. Sequential awaits keep the AsyncSession safe.
+    series: List[TimeSeriesData] = []
+    for metric_id, (name, unit, _device) in owned.items():
+        stmt = (
+            select(Measurement)
+            .where(
+                Measurement.metric_id == metric_id,
+                Measurement.time >= start_time,
+                Measurement.time <= end_time,
+            )
+            .order_by(Measurement.time.asc())
+        )
+        if limit:
+            stmt = stmt.limit(limit)
+
+        mrows = (await db.execute(stmt)).scalars().all()
+        if not mrows:
+            continue
+
+        # Visually-lossless point reduction for large raw series (LTTB).
+        if max_points and len(mrows) > max_points:
+            xs = [m.time.timestamp() for m in mrows]
+            ys = [float(m.value) for m in mrows]
+            mrows = [mrows[k] for k in _lttb_indices(xs, ys, max_points)]
+
+        series.append(
+            TimeSeriesData(
+                metric_id=metric_id,
+                metric_name=name,
+                metric_unit=unit,
+                data=[
+                    TimeSeriesDataPoint(
+                        time=m.time.isoformat(), value=float(m.value), quality=m.quality
+                    )
+                    for m in mrows
+                ],
+            )
+        )
+    return series
+
+
+@router.get("/downsample", response_model=List[TimeSeriesData])
+async def get_downsampled(
+    metric_ids: str,
+    bucket_size: str,
+    start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
+    aggregation: Optional[str] = "avg",
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Downsampled time-series for visualization (always bucketed)."""
+    owned = await _owned_metrics(db, current_user, _parse_uuid_csv(metric_ids))
+    if not owned:
+        return []
+    end = end_time or datetime.now(timezone.utc)
+    start = start_time or (end - timedelta(days=1))
+    return await _bucketed_series(db, owned, start, end, bucket_size, aggregation)
+
+
+@router.get("/latest", response_model=List[MeasurementResponse])
+async def get_latest(
+    metric_ids: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Most recent measurement per metric."""
+    owned = await _owned_metrics(db, current_user, _parse_uuid_csv(metric_ids))
+    if not owned:
+        return []
+    stmt = (
+        select(Measurement)
+        .where(Measurement.metric_id.in_(list(owned.keys())))
+        .distinct(Measurement.metric_id)
+        .order_by(Measurement.metric_id, Measurement.time.desc())
+    )
+    return (await db.execute(stmt)).scalars().all()
+
+
+@router.get("/statistics")
+async def get_statistics(
+    metric_id: UUID,
+    start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Aggregate statistics (avg/min/max/sum/count/std_dev) for a single metric."""
+    owned = await _owned_metrics(db, current_user, [metric_id])
+    if not owned:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Metric not found")
+
+    conditions = [Measurement.metric_id == metric_id]
+    if start_time:
+        conditions.append(Measurement.time >= start_time)
+    if end_time:
+        conditions.append(Measurement.time <= end_time)
+
+    row = (
+        await db.execute(
+            select(
+                func.count(Measurement.value),
+                func.min(Measurement.value),
+                func.max(Measurement.value),
+                func.avg(Measurement.value),
+                func.sum(Measurement.value),
+                func.stddev_samp(Measurement.value),
+            ).where(*conditions)
+        )
+    ).one()
+
+    return {
+        "count": row[0] or 0,
+        "min": row[1],
+        "max": row[2],
+        "avg": row[3],
+        "sum": row[4],
+        "std_dev": row[5],
+    }
+
+
+@router.delete("/range")
+async def delete_range(
+    metric_id: UUID,
+    start_time: datetime,
+    end_time: datetime,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete measurements of a metric within a time range."""
+    owned = await _owned_metrics(db, current_user, [metric_id])
+    if not owned:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Metric not found")
+
+    result = await db.execute(
+        delete(Measurement).where(
+            Measurement.metric_id == metric_id,
+            Measurement.time >= start_time,
+            Measurement.time <= end_time,
+        )
+    )
+    await db.commit()
+    return {"count": result.rowcount or 0}

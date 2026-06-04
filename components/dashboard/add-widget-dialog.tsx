@@ -14,6 +14,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useDashboardStore, WidgetConfig } from '@/lib/stores/dashboard-store';
+import apiClient from '@/lib/api/client';
+import { useCalculations } from '@/lib/hooks/use-calculations';
 
 interface Device {
   id: string;
@@ -33,9 +35,11 @@ interface AddWidgetDialogProps {
 
 export function AddWidgetDialog({ open, onOpenChange }: AddWidgetDialogProps) {
   const [title, setTitle] = useState('');
+  const [source, setSource] = useState<'metrics' | 'calculation'>('metrics');
   const [chartType, setChartType] = useState<'line' | 'bar' | 'area' | 'scatter'>('line');
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
   const [selectedMetricIds, setSelectedMetricIds] = useState<string[]>([]);
+  const [selectedCalculationId, setSelectedCalculationId] = useState('');
   const [timeRange, setTimeRange] = useState('last_24h');
   const [aggregationInterval, setAggregationInterval] = useState('15 minutes');
   const [refreshInterval, setRefreshInterval] = useState('60');
@@ -44,13 +48,14 @@ export function AddWidgetDialog({ open, onOpenChange }: AddWidgetDialogProps) {
   const [availableMetrics, setAvailableMetrics] = useState<Metric[]>([]);
 
   const { addWidget } = useDashboardStore();
+  const { data: calculations = [] } = useCalculations({ enabled: open });
 
   // Load devices on mount
   useEffect(() => {
     if (open) {
-      fetch('/api/devices')
-        .then((res) => res.json())
-        .then((data) => setDevices(data.devices || []))
+      apiClient
+        .get<Device[]>('/api/v1/devices')
+        .then((res) => setDevices(res.data || []))
         .catch(console.error);
     }
   }, [open]);
@@ -62,9 +67,9 @@ export function AddWidgetDialog({ open, onOpenChange }: AddWidgetDialogProps) {
       return;
     }
 
-    fetch(`/api/devices/${selectedDeviceId}/metrics`)
-      .then((res) => res.json())
-      .then((data) => setAvailableMetrics(data.metrics || []))
+    apiClient
+      .get<Metric[]>(`/api/v1/devices/${selectedDeviceId}/metrics`)
+      .then((res) => setAvailableMetrics(res.data || []))
       .catch(console.error);
   }, [selectedDeviceId]);
 
@@ -76,32 +81,37 @@ export function AddWidgetDialog({ open, onOpenChange }: AddWidgetDialogProps) {
     }
   };
 
-  const handleSubmit = () => {
-    if (!title || !selectedDeviceId || selectedMetricIds.length === 0) {
-      return;
-    }
+  const isValid =
+    source === 'calculation'
+      ? Boolean(title && selectedCalculationId)
+      : Boolean(title && selectedDeviceId && selectedMetricIds.length > 0);
 
-    const widget: WidgetConfig = {
+  const handleSubmit = () => {
+    if (!isValid) return;
+
+    const base = {
       id: `widget-${Date.now()}`,
       title,
       chartType,
-      deviceId: selectedDeviceId,
-      metricIds: selectedMetricIds,
-      timeRange: {
-        type: 'relative',
-        value: timeRange,
-      },
+      timeRange: { type: 'relative' as const, value: timeRange },
       aggregationInterval,
       refreshInterval: parseInt(refreshInterval),
     };
+
+    const widget: WidgetConfig =
+      source === 'calculation'
+        ? { ...base, deviceId: '', metricIds: [], calculationId: selectedCalculationId }
+        : { ...base, deviceId: selectedDeviceId, metricIds: selectedMetricIds };
 
     addWidget(widget);
     onOpenChange(false);
 
     // Reset form
     setTitle('');
+    setSource('metrics');
     setSelectedDeviceId('');
     setSelectedMetricIds([]);
+    setSelectedCalculationId('');
     setTimeRange('last_24h');
   };
 
@@ -127,48 +137,85 @@ export function AddWidgetDialog({ open, onOpenChange }: AddWidgetDialogProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="device">Device</Label>
-            <Select value={selectedDeviceId} onValueChange={setSelectedDeviceId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a device" />
+            <Label htmlFor="source">Source</Label>
+            <Select value={source} onValueChange={(v: any) => setSource(v)}>
+              <SelectTrigger id="source">
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {devices.map((device) => (
-                  <SelectItem key={device.id} value={device.id}>
-                    {device.name}
-                  </SelectItem>
-                ))}
+                <SelectItem value="metrics">Device metrics</SelectItem>
+                <SelectItem value="calculation">Calculation</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label>Metrics</Label>
-            <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-2">
-              {availableMetrics.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  {selectedDeviceId ? 'No metrics available' : 'Select a device first'}
-                </p>
-              ) : (
-                availableMetrics.map((metric) => (
-                  <label
-                    key={metric.id}
-                    className="flex items-center gap-2 p-2 hover:bg-accent rounded-md cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedMetricIds.includes(metric.id)}
-                      onChange={() => handleMetricToggle(metric.id)}
-                      className="rounded"
-                    />
-                    <span className="text-sm">
-                      {metric.name} {metric.unit && `(${metric.unit})`}
-                    </span>
-                  </label>
-                ))
-              )}
+          {source === 'metrics' ? (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="device">Device</Label>
+                <Select value={selectedDeviceId} onValueChange={setSelectedDeviceId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a device" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {devices.map((device) => (
+                      <SelectItem key={device.id} value={device.id}>
+                        {device.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Metrics</Label>
+                <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-2">
+                  {availableMetrics.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      {selectedDeviceId ? 'No metrics available' : 'Select a device first'}
+                    </p>
+                  ) : (
+                    availableMetrics.map((metric) => (
+                      <label
+                        key={metric.id}
+                        className="flex items-center gap-2 p-2 hover:bg-accent rounded-md cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedMetricIds.includes(metric.id)}
+                          onChange={() => handleMetricToggle(metric.id)}
+                          className="rounded"
+                        />
+                        <span className="text-sm">
+                          {metric.name} {metric.unit && `(${metric.unit})`}
+                        </span>
+                      </label>
+                    ))
+                  )}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="calculation">Calculation</Label>
+              <Select value={selectedCalculationId} onValueChange={setSelectedCalculationId}>
+                <SelectTrigger id="calculation">
+                  <SelectValue placeholder="Select a calculation" />
+                </SelectTrigger>
+                <SelectContent>
+                  {calculations.length === 0 ? (
+                    <div className="p-2 text-sm text-muted-foreground">No calculations yet</div>
+                  ) : (
+                    calculations.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
             </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -242,10 +289,7 @@ export function AddWidgetDialog({ open, onOpenChange }: AddWidgetDialogProps) {
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!title || !selectedDeviceId || selectedMetricIds.length === 0}
-          >
+          <Button onClick={handleSubmit} disabled={!isValid}>
             Add Widget
           </Button>
         </DialogFooter>

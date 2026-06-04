@@ -26,12 +26,14 @@ router = APIRouter()
 
 # Schemas
 class LineMetricsConfigSchema(BaseModel):
-    """LineMetrics configuration for OAuth2 (for creating DataSource)"""
+    """LineMetrics configuration for OAuth2 password grant (for creating DataSource)"""
 
     name: str = Field(description="Name for this LineMetrics connection")
     api_url: str = Field(default="https://rest-api.linemetrics.com")
     client_id: str = Field(description="OAuth2 Client ID")
     client_secret: str = Field(description="OAuth2 Client Secret")
+    username: str = Field(description="LineMetrics account username (email)")
+    password: str = Field(description="LineMetrics account password")
 
 
 # Helper function to get LineMetrics config from DataSource
@@ -56,10 +58,14 @@ async def get_linemetrics_config_from_datasource(
             detail="LineMetrics data source not found"
         )
 
+    # username/password for the OAuth2 password grant are stored in the config JSONB
+    extra = datasource.config or {}
     config = LineMetricsConfig(
         api_url=datasource.api_url,
         client_id=datasource.client_id or "",
         client_secret=datasource.api_token or "",  # api_token stores the client_secret
+        username=extra.get("username", ""),
+        password=extra.get("password", ""),
     )
 
     return datasource, config
@@ -151,19 +157,23 @@ async def create_linemetrics_datasource(
             api_url=config.api_url,
             client_id=config.client_id,
             client_secret=config.client_secret,
+            username=config.username,
+            password=config.password,
         )
 
         async with LineMetricsService(lm_config) as service:
             devices = await service.get_devices()
             device_count = len(devices) if isinstance(devices, dict) else 0
 
-        # Connection successful, create DataSource
+        # Connection successful, create DataSource.
+        # api_token stores the client_secret; username/password live in config JSONB.
         datasource = DataSource(
             name=config.name,
             type="linemetrics",
             api_url=config.api_url,
             client_id=config.client_id,
-            api_token=config.client_secret,  # Store client_secret in api_token field
+            api_token=config.client_secret,
+            config={"username": config.username, "password": config.password},
             is_active=True,
             owner_id=current_user.id,
         )

@@ -353,10 +353,10 @@ export function ETLDesigner() {
 
   return (
     <div className="space-y-4 animate-slide-up">
-      <div className="rounded-xl border p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/20 backdrop-blur-sm">
+      <div className="rounded-xl border border-border p-4 bg-muted/40">
         <div className="flex items-start gap-3">
-          <div className="p-2 rounded-lg bg-purple-500/20">
-            <Info className="h-5 w-5 text-purple-500" />
+          <div className="p-2 rounded-lg bg-muted">
+            <Info className="h-5 w-5 text-muted-foreground" />
           </div>
           <div className="flex-1">
             <h3 className="font-semibold text-sm mb-1">ETL Pipeline Designer</h3>
@@ -369,7 +369,7 @@ export function ETLDesigner() {
       </div>
 
       {/* Data Source Input Selector */}
-      <div className="flex items-center gap-2 p-3 bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-lg">
+      <div className="flex items-center gap-2 p-3 bg-muted/40 border border-border rounded-lg">
         <div className="flex-1 flex items-center gap-2">
           <span className="text-sm font-medium">Add Data Source as Input:</span>
           <Select value={selectedDataSourceForInput} onValueChange={setSelectedDataSourceForInput}>
@@ -452,7 +452,7 @@ export function ETLDesigner() {
               onNodeClick={onNodeClick}
               nodeTypes={nodeTypes}
               fitView
-              className="bg-slate-950"
+              className="bg-muted/30"
             >
               <Controls />
               <MiniMap
@@ -472,7 +472,7 @@ export function ETLDesigner() {
                       return '#3b82f6';
                   }
                 }}
-                className="bg-slate-900"
+                className="!bg-card"
               />
               <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
             </ReactFlow>
@@ -510,8 +510,8 @@ export function ETLDesigner() {
                         getNodeData(selectedNode).status === 'ready'
                           ? 'bg-green-500'
                           : getNodeData(selectedNode).status === 'running'
-                            ? 'bg-yellow-500'
-                            : 'bg-slate-500'
+                            ? 'bg-amber-500'
+                            : 'bg-muted-foreground/40'
                       }`}
                     />
                     <span className="text-sm capitalize">{getNodeData(selectedNode).status}</span>
@@ -531,7 +531,7 @@ export function ETLDesigner() {
                     {Object.entries(getNodeData(selectedNode).config || {}).map(([key, value]) => (
                       <div key={key} className="text-xs">
                         <div className="text-muted-foreground mb-1">{key}:</div>
-                        <div className="font-mono bg-slate-800 p-2 rounded">
+                        <div className="font-mono bg-muted p-2 rounded">
                           {typeof value === 'object' ? JSON.stringify(value) : String(value)}
                         </div>
                       </div>

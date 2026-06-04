@@ -42,38 +42,38 @@ export const API_ENDPOINTS = {
   // Dashboards
   dashboards: {
     list: '/api/v1/dashboards',
-    get: (id: number) => `/api/v1/dashboards/${id}`,
+    get: (id: string) => `/api/v1/dashboards/${id}`,
     create: '/api/v1/dashboards',
-    update: (id: number) => `/api/v1/dashboards/${id}`,
-    delete: (id: number) => `/api/v1/dashboards/${id}`,
+    update: (id: string) => `/api/v1/dashboards/${id}`,
+    delete: (id: string) => `/api/v1/dashboards/${id}`,
   },
 
   // Data Sources
   dataSources: {
     list: '/api/v1/data-sources',
-    get: (id: number) => `/api/v1/data-sources/${id}`,
+    get: (id: string) => `/api/v1/data-sources/${id}`,
     create: '/api/v1/data-sources',
-    update: (id: number) => `/api/v1/data-sources/${id}`,
-    delete: (id: number) => `/api/v1/data-sources/${id}`,
-    stats: (id: number) => `/api/v1/data-sources/${id}/stats`,
-    sync: (id: number) => `/api/v1/data-sources/${id}/sync`,
+    update: (id: string) => `/api/v1/data-sources/${id}`,
+    delete: (id: string) => `/api/v1/data-sources/${id}`,
+    stats: (id: string) => `/api/v1/data-sources/${id}/stats`,
+    sync: (id: string) => `/api/v1/data-sources/${id}/sync`,
   },
 
   // Devices
   devices: {
     list: '/api/v1/devices',
-    get: (id: number) => `/api/v1/devices/${id}`,
+    get: (id: string) => `/api/v1/devices/${id}`,
     create: '/api/v1/devices',
-    update: (id: number) => `/api/v1/devices/${id}`,
-    delete: (id: number) => `/api/v1/devices/${id}`,
+    update: (id: string) => `/api/v1/devices/${id}`,
+    delete: (id: string) => `/api/v1/devices/${id}`,
   },
 
   // Metrics
   metrics: {
     list: '/api/v1/metrics',
     create: '/api/v1/metrics',
-    update: (id: number) => `/api/v1/metrics/${id}`,
-    delete: (id: number) => `/api/v1/metrics/${id}`,
+    update: (id: string) => `/api/v1/metrics/${id}`,
+    delete: (id: string) => `/api/v1/metrics/${id}`,
   },
 
   // Measurements
@@ -89,6 +89,37 @@ export const API_ENDPOINTS = {
     query: '/api/v1/anomalies/query',
     stats: '/api/v1/anomalies/stats',
     create: '/api/v1/anomalies',
-    update: (id: number) => `/api/v1/anomalies/${id}`,
+    update: (id: string) => `/api/v1/anomalies/${id}`,
+  },
+
+  // Calculations
+  calculations: {
+    list: '/api/v1/calculations',
+    create: '/api/v1/calculations',
+    get: (id: string) => `/api/v1/calculations/${id}`,
+    update: (id: string) => `/api/v1/calculations/${id}`,
+    delete: (id: string) => `/api/v1/calculations/${id}`,
+    preview: '/api/v1/calculations/preview',
+    evaluate: (id: string) => `/api/v1/calculations/${id}/evaluate`,
+  },
+
+  // Alerts
+  alerts: {
+    rules: '/api/v1/alerts/rules',
+    rule: (id: string) => `/api/v1/alerts/rules/${id}`,
+    evaluate: (id: string) => `/api/v1/alerts/rules/${id}/evaluate`,
+    events: '/api/v1/alerts/events',
+    acknowledge: (id: string) => `/api/v1/alerts/events/${id}/acknowledge`,
+  },
+
+  // Reports
+  reports: {
+    list: '/api/v1/reports',
+    create: '/api/v1/reports',
+    get: (id: string) => `/api/v1/reports/${id}`,
+    update: (id: string) => `/api/v1/reports/${id}`,
+    delete: (id: string) => `/api/v1/reports/${id}`,
+    generate: (id: string) => `/api/v1/reports/${id}/generate`,
+    history: (id: string) => `/api/v1/reports/${id}/history`,
   },
 } as const;

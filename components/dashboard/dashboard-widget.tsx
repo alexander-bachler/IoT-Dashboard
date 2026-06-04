@@ -9,6 +9,7 @@ import type { WidgetConfig } from '@/lib/stores/dashboard-store';
 import { useDashboardStore } from '@/lib/stores/dashboard-store';
 import { ConfigureWidgetDialog } from './configure-widget-dialog';
 import apiClient from '@/lib/api/client';
+import { calculationsApi } from '@/lib/api/services/calculations';
 
 interface DashboardWidgetProps {
   widget: WidgetConfig;
@@ -36,50 +37,70 @@ export function DashboardWidget({
   const [series, setSeries] = useState<Series[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isConfigureOpen, setIsConfigureOpen] = useState(false);
-  const { selectedDataSourceIds } = useDashboardStore();
+  const { selectedDataSourceIds, globalTimeRange, refreshNonce } = useDashboardStore();
 
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
 
       try {
-        // Calculate time range based on widget config
+        // Calculate time range. A global dashboard range (when set) overrides
+        // the widget's own range so all widgets stay in sync.
         const end = new Date();
         const start = new Date();
 
-        if (widget.timeRange.type === 'relative') {
-          switch (widget.timeRange.value) {
-            case 'last_hour':
-              start.setHours(start.getHours() - 1);
-              break;
-            case 'last_24h':
-              start.setDate(start.getDate() - 1);
-              break;
-            case 'last_7d':
-              start.setDate(start.getDate() - 7);
-              break;
-            default:
-              start.setDate(start.getDate() - 1);
+        const rangeValue =
+          globalTimeRange ||
+          (widget.timeRange.type === 'relative' ? widget.timeRange.value : 'last_24h');
+
+        switch (rangeValue) {
+          case 'last_hour':
+            start.setHours(start.getHours() - 1);
+            break;
+          case 'last_24h':
+            start.setDate(start.getDate() - 1);
+            break;
+          case 'last_7d':
+            start.setDate(start.getDate() - 7);
+            break;
+          case 'last_30d':
+            start.setDate(start.getDate() - 30);
+            break;
+          default:
+            start.setDate(start.getDate() - 1);
+        }
+
+        if (widget.calculationId) {
+          // Calculation-backed widget: evaluate the derived series.
+          const result = await calculationsApi.evaluate(widget.calculationId, {
+            start_time: start.toISOString(),
+            end_time: end.toISOString(),
+            interval: widget.aggregationInterval,
+          });
+          setSeries(
+            result.data && result.data.length > 0
+              ? [{ metricId: widget.calculationId, metricName: widget.title, data: result.data }]
+              : []
+          );
+        } else {
+          const requestBody: any = {
+            metric_ids: widget.metricIds,
+            start_time: start.toISOString(),
+            end_time: end.toISOString(),
+          };
+
+          // Add data source filter if selected
+          if (selectedDataSourceIds.length > 0) {
+            requestBody.data_source_ids = selectedDataSourceIds;
           }
+
+          if (widget.aggregationInterval) {
+            requestBody.aggregation = widget.aggregationInterval;
+          }
+
+          const response = await apiClient.post('/api/v1/measurements/query', requestBody);
+          setSeries(response.data || []);
         }
-
-        const requestBody: any = {
-          metric_ids: widget.metricIds,
-          start_time: start.toISOString(),
-          end_time: end.toISOString(),
-        };
-
-        // Add data source filter if selected
-        if (selectedDataSourceIds.length > 0) {
-          requestBody.data_source_ids = selectedDataSourceIds;
-        }
-
-        if (widget.aggregationInterval) {
-          requestBody.aggregation = widget.aggregationInterval;
-        }
-
-        const response = await apiClient.post('/api/v1/measurements/query', requestBody);
-        setSeries(response.data || []);
       } catch (error) {
         console.error('Error fetching widget data:', error);
         setSeries([]);
@@ -95,7 +116,7 @@ export function DashboardWidget({
       const interval = setInterval(fetchData, widget.refreshInterval * 1000);
       return () => clearInterval(interval);
     }
-  }, [widget, selectedDataSourceIds]);
+  }, [widget, selectedDataSourceIds, globalTimeRange, refreshNonce]);
 
   return (
     <>

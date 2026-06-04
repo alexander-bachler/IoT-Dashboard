@@ -16,11 +16,11 @@ function AnomalyCard({ anomaly }: { anomaly: any }) {
   const { mutate: updateAnomaly, isPending } = useUpdateAnomaly();
 
   const handleAcknowledge = () => {
+    // acknowledged_by is set server-side from the authenticated user
     updateAnomaly({
       id: anomaly.id,
       data: {
-        status: 'acknowledged',
-        acknowledged_by: 'current_user', // TODO: Get from auth context
+        acknowledged: true,
       },
     });
   };
@@ -61,7 +61,7 @@ function AnomalyCard({ anomaly }: { anomaly: any }) {
     }
   };
 
-  const isAcknowledged = anomaly.status === 'acknowledged' || anomaly.status === 'resolved';
+  const isAcknowledged = anomaly.acknowledged === true;
 
   return (
     <div
@@ -84,7 +84,7 @@ function AnomalyCard({ anomaly }: { anomaly: any }) {
               {isAcknowledged && (
                 <Badge variant="default" className="bg-green-500/20 text-green-500 border-green-500/30">
                   <Check className="h-3 w-3 mr-1" />
-                  {anomaly.status}
+                  acknowledged
                 </Badge>
               )}
             </div>
@@ -182,9 +182,6 @@ export default function AnomaliesPage() {
   return (
     <ErrorBoundary>
       <div className="container mx-auto p-6 space-y-6 animate-fade-in">
-        {/* Gradient orbs */}
-        <div className="absolute -top-4 -left-4 w-72 h-72 bg-red-500/20 rounded-full blur-3xl" />
-        <div className="absolute -top-4 -right-4 w-72 h-72 bg-orange-500/20 rounded-full blur-3xl" />
 
         {/* Header */}
         <div className="relative">

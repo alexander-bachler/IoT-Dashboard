@@ -13,6 +13,11 @@ interface RateLimitEntry {
 
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
+/** Clear the in-memory rate-limit store. Intended for tests (isolation). */
+export function resetRateLimitStore(): void {
+  rateLimitStore.clear();
+}
+
 export interface RateLimitConfig {
   maxRequests: number; // Maximum requests allowed in the window
   windowMs: number; // Time window in milliseconds

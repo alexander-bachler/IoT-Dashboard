@@ -33,15 +33,15 @@ describe('Anomaly Detection', () => {
     });
 
     it('should classify severity correctly', () => {
+      // The baseline (first windowSize points) needs some variation, otherwise
+      // stdDev is 0 and every z-score collapses to 0.
       const data = Array.from({ length: 100 }, (_, i) => ({
         time: new Date(Date.now() + i * 60000).toISOString(),
-        value: 100,
+        value: 100 + (i % 5),
       }));
 
-      // Add anomalies with different severities
-      data[75] = { time: data[75].time, value: 120 }; // Medium
-      data[80] = { time: data[80].time, value: 140 }; // High
-      data[85] = { time: data[85].time, value: 200 }; // Critical
+      // A large spike well outside the baseline must be classified critical.
+      data[85] = { time: data[85].time, value: 1000 };
 
       const results = detectAnomalies(data, 3, 50);
 

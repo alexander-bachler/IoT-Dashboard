@@ -40,8 +40,16 @@ export function DashboardManager() {
   const [dashboardDescription, setDashboardDescription] = useState('');
   const [selectedDashboardId, setSelectedDashboardId] = useState<string>('');
 
-  const { currentDashboardId, setCurrentDashboardId, layout, widgets, reset } =
-    useDashboardStore();
+  const {
+    currentDashboardId,
+    setCurrentDashboardId,
+    layout,
+    widgets,
+    reset,
+    globalTimeRange,
+    globalRefreshInterval,
+    selectedDataSourceIds,
+  } = useDashboardStore();
 
   const { data: dashboards, isLoading: isLoadingDashboards } = useDashboards();
   const { data: currentDashboard } = useDashboard(currentDashboardId);
@@ -49,7 +57,8 @@ export function DashboardManager() {
   const updateDashboard = useUpdateDashboard();
   const deleteDashboard = useDeleteDashboard();
 
-  // Convert local state to dashboard layout format
+  // Convert local state to dashboard layout format (stored in the backend's
+  // free-form `config`), including the global dashboard settings.
   const getDashboardLayout = (): DashboardLayout => {
     return {
       widgets: widgets.map((widget) => {
@@ -68,12 +77,18 @@ export function DashboardManager() {
             chartType: widget.chartType,
             metricIds: widget.metricIds,
             deviceId: widget.deviceId,
+            calculationId: widget.calculationId,
             timeRange: widget.timeRange,
             aggregationInterval: widget.aggregationInterval,
             refreshInterval: widget.refreshInterval,
           },
         };
       }),
+      settings: {
+        globalTimeRange,
+        globalRefreshInterval,
+        selectedDataSourceIds,
+      },
     };
   };
 
@@ -82,8 +97,20 @@ export function DashboardManager() {
     reset();
     setCurrentDashboardId(dashboard.id);
 
+    const cfg = dashboard.config || {};
+
+    // Restore global dashboard settings (time range, refresh, data sources).
+    const settings = cfg.settings;
+    if (settings) {
+      const { setGlobalTimeRange, setGlobalRefreshInterval, setSelectedDataSourceIds } =
+        useDashboardStore.getState();
+      setGlobalTimeRange(settings.globalTimeRange ?? null);
+      setGlobalRefreshInterval(settings.globalRefreshInterval ?? 0);
+      setSelectedDataSourceIds(settings.selectedDataSourceIds ?? []);
+    }
+
     // Convert backend format to local store format
-    dashboard.layout.widgets.forEach((widget: any) => {
+    (cfg.widgets || []).forEach((widget: any) => {
       const { addWidget, setLayout } = useDashboardStore.getState();
 
       addWidget(
@@ -93,6 +120,7 @@ export function DashboardManager() {
           chartType: widget.config.chartType,
           metricIds: widget.config.metricIds || [],
           deviceId: widget.config.deviceId || '',
+          calculationId: widget.config.calculationId,
           timeRange: widget.config.timeRange || { type: 'relative', value: 'last_24h' },
           aggregationInterval: widget.config.aggregationInterval,
           refreshInterval: widget.config.refreshInterval,
@@ -119,7 +147,7 @@ export function DashboardManager() {
     const dashboardData = {
       name: dashboardName,
       description: dashboardDescription || undefined,
-      layout: getDashboardLayout(),
+      config: getDashboardLayout(),
     };
 
     if (currentDashboardId) {
