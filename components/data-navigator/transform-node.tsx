@@ -8,7 +8,6 @@ import {
   Columns,
   FileOutput,
   Settings,
-  ArrowRight,
 } from 'lucide-react';
 
 const iconMap: Record<string, any> = {
@@ -21,14 +20,16 @@ const iconMap: Record<string, any> = {
   transform: Settings,
 };
 
-const colorMap: Record<string, string> = {
-  source: 'from-green-600 to-green-700',
-  filter: 'from-orange-600 to-orange-700',
-  join: 'from-cyan-600 to-cyan-700',
-  aggregate: 'from-purple-600 to-purple-700',
-  select: 'from-blue-600 to-blue-700',
-  output: 'from-red-600 to-red-700',
-  transform: 'from-slate-600 to-slate-700',
+// Per-type accent applied to the icon only (keeps node categorisation without
+// painting the whole header). Everything else uses theme tokens.
+const iconColorMap: Record<string, string> = {
+  source: 'text-green-500',
+  filter: 'text-orange-500',
+  join: 'text-cyan-500',
+  aggregate: 'text-purple-500',
+  select: 'text-blue-500',
+  output: 'text-red-500',
+  transform: 'text-muted-foreground',
 };
 
 interface TransformNodeData {
@@ -42,64 +43,64 @@ interface TransformNodeData {
 export const TransformNode = memo(({ data: rawData }: NodeProps) => {
   const data = rawData as unknown as TransformNodeData;
   const Icon = iconMap[data.type] || Settings;
-  const colorClass = colorMap[data.type] || 'from-slate-600 to-slate-700';
+  const iconColor = iconColorMap[data.type] || 'text-muted-foreground';
 
   return (
-    <div className="bg-slate-900 border-2 border-slate-700 rounded-lg shadow-xl min-w-[280px] hover:border-blue-500 transition-colors">
+    <div className="min-w-[280px] rounded-lg border border-border bg-card shadow-md transition-colors hover:border-primary">
       {data.type !== 'source' && (
         <Handle
           type="target"
           position={Position.Top}
-          className="!w-3 !h-3 !bg-blue-500 !border-2 !border-slate-900"
+          className="!h-3 !w-3 !border-2 !border-background !bg-primary"
         />
       )}
 
       {/* Header */}
-      <div className={`bg-gradient-to-r ${colorClass} px-4 py-3 rounded-t-lg flex items-center gap-2`}>
-        <Icon className="h-4 w-4 text-white" />
-        <span className="font-semibold text-white flex-1">{data.label}</span>
+      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+        <Icon className={`h-4 w-4 ${iconColor}`} />
+        <span className="flex-1 font-semibold text-foreground">{data.label}</span>
         <div
           className={`h-2 w-2 rounded-full ${
             data.status === 'ready'
-              ? 'bg-green-400'
+              ? 'bg-green-500'
               : data.status === 'running'
-                ? 'bg-yellow-400 animate-pulse'
-                : 'bg-slate-400'
+                ? 'animate-pulse bg-amber-500'
+                : 'bg-muted-foreground/40'
           }`}
         />
       </div>
 
       {/* Body */}
-      <div className="p-3 space-y-2">
+      <div className="space-y-2 p-3">
         <div className="flex items-center justify-between text-xs">
-          <span className="text-slate-400">Typ:</span>
-          <span className="text-slate-200 font-medium capitalize">{data.type}</span>
+          <span className="text-muted-foreground">Typ:</span>
+          <span className="font-medium capitalize text-foreground">{data.type}</span>
         </div>
 
         <div className="flex items-center justify-between text-xs">
-          <span className="text-slate-400">Zeilen:</span>
-          <span className="text-slate-200 font-semibold">
+          <span className="text-muted-foreground">Zeilen:</span>
+          <span className="font-semibold text-foreground">
             {data.rowCount?.toLocaleString() || '—'}
           </span>
         </div>
 
         {/* Config preview */}
         {data.config && Object.keys(data.config).length > 0 && (
-          <div className="mt-2 pt-2 border-t border-slate-700">
-            <div className="text-xs text-slate-400 mb-1">Konfiguration:</div>
+          <div className="mt-2 border-t border-border pt-2">
+            <div className="mb-1 text-xs text-muted-foreground">Konfiguration:</div>
             <div className="space-y-1">
               {Object.entries(data.config)
                 .slice(0, 2)
                 .map(([key, value]) => (
                   <div key={key} className="text-xs">
-                    <span className="text-slate-500">{key}:</span>
-                    <div className="font-mono text-slate-300 truncate text-[10px] mt-0.5">
+                    <span className="text-muted-foreground">{key}:</span>
+                    <div className="mt-0.5 truncate font-mono text-[10px] text-foreground">
                       {typeof value === 'object' ? JSON.stringify(value) : String(value)}
                     </div>
                   </div>
                 ))}
               {Object.keys(data.config).length > 2 && (
-                <div className="text-[10px] text-slate-500">
+                <div className="text-[10px] text-muted-foreground">
                   +{Object.keys(data.config).length - 2} weitere
                 </div>
               )}
@@ -112,7 +113,7 @@ export const TransformNode = memo(({ data: rawData }: NodeProps) => {
         <Handle
           type="source"
           position={Position.Bottom}
-          className="!w-3 !h-3 !bg-blue-500 !border-2 !border-slate-900"
+          className="!h-3 !w-3 !border-2 !border-background !bg-primary"
         />
       )}
     </div>

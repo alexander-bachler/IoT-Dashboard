@@ -121,7 +121,7 @@ export function TransformationToolbox({ onAdd }: TransformationToolboxProps) {
     <div className="space-y-6">
       {categories.map((category) => (
         <div key={category}>
-          <h3 className="text-sm font-semibold mb-3 text-slate-400">{category}</h3>
+          <h3 className="text-sm font-semibold mb-3 text-muted-foreground">{category}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {transformations
               .filter((t) => t.category === category)
@@ -130,7 +130,7 @@ export function TransformationToolbox({ onAdd }: TransformationToolboxProps) {
                 return (
                   <Card
                     key={transform.type}
-                    className="p-4 hover:bg-slate-800 cursor-pointer transition-colors"
+                    className="p-4 hover:bg-accent cursor-pointer transition-colors"
                     onClick={() => onAdd(transform.type, transform.label)}
                   >
                     <div className="flex items-start gap-3">

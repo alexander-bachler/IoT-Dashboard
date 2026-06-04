@@ -313,7 +313,7 @@ export default function ExplorerPage() {
 
         <div className="grid lg:grid-cols-4 gap-6">
           {/* Sidebar Controls */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 lg:sticky lg:top-20 lg:self-start">
             <ExplorerControls />
           </div>
 

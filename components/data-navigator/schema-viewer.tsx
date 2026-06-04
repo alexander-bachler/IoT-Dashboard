@@ -303,7 +303,7 @@ export function SchemaViewer() {
               onNodeClick={onNodeClick}
               nodeTypes={nodeTypes}
               fitView
-              className="bg-slate-950"
+              className="bg-muted/30"
             >
               <Controls />
               <MiniMap
@@ -311,7 +311,7 @@ export function SchemaViewer() {
                   if (node.data.isHypertable) return '#8b5cf6';
                   return '#3b82f6';
                 }}
-                className="bg-slate-900"
+                className="!bg-card"
               />
               <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
             </ReactFlow>
@@ -339,7 +339,7 @@ export function SchemaViewer() {
                 {getNodeData(selectedNode).columns.map((col, idx) => (
                   <div
                     key={idx}
-                    className="text-xs p-2 bg-slate-800 rounded flex items-center justify-between"
+                    className="text-xs p-2 bg-muted rounded flex items-center justify-between"
                   >
                     <div className="flex items-center gap-2">
                       <span className="font-mono">{col.name}</span>
