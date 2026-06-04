@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
+from uuid import UUID
 
 from app.db.database import get_db
 from app.models.user import User
@@ -18,7 +19,7 @@ router = APIRouter()
 
 @router.get("/", response_model=List[DeviceResponse])
 async def get_devices(
-    data_source_id: int | None = None,
+    data_source_id: UUID | None = None,
     skip: int = 0,
     limit: int = 50,
     current_user: User = Depends(get_current_user),
@@ -39,7 +40,7 @@ async def get_devices(
 
 @router.get("/{device_id}", response_model=DeviceResponse)
 async def get_device(
-    device_id: int,
+    device_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -62,7 +63,7 @@ async def get_device(
 
 @router.get("/{device_id}/metrics", response_model=List[MetricResponse])
 async def get_device_metrics(
-    device_id: int,
+    device_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -112,14 +113,14 @@ async def create_device(
             detail="Data source not found"
         )
 
-    # Check if device_id already exists
+    # Check if external_id already exists
     existing = await db.execute(
-        select(Device).where(Device.device_id == device_in.device_id)
+        select(Device).where(Device.external_id == device_in.external_id)
     )
     if existing.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Device ID already exists"
+            detail="Device with this external_id already exists"
         )
 
     device = Device(**device_in.dict())
@@ -132,7 +133,7 @@ async def create_device(
 
 @router.put("/{device_id}", response_model=DeviceResponse)
 async def update_device(
-    device_id: int,
+    device_id: UUID,
     device_in: DeviceUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -163,7 +164,7 @@ async def update_device(
 
 @router.delete("/{device_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_device(
-    device_id: int,
+    device_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):

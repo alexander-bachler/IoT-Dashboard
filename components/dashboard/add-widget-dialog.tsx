@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useDashboardStore, WidgetConfig } from '@/lib/stores/dashboard-store';
+import apiClient from '@/lib/api/client';
 
 interface Device {
   id: string;
@@ -48,9 +49,9 @@ export function AddWidgetDialog({ open, onOpenChange }: AddWidgetDialogProps) {
   // Load devices on mount
   useEffect(() => {
     if (open) {
-      fetch('/api/devices')
-        .then((res) => res.json())
-        .then((data) => setDevices(data.devices || []))
+      apiClient
+        .get<Device[]>('/api/v1/devices')
+        .then((res) => setDevices(res.data || []))
         .catch(console.error);
     }
   }, [open]);
@@ -62,9 +63,9 @@ export function AddWidgetDialog({ open, onOpenChange }: AddWidgetDialogProps) {
       return;
     }
 
-    fetch(`/api/devices/${selectedDeviceId}/metrics`)
-      .then((res) => res.json())
-      .then((data) => setAvailableMetrics(data.metrics || []))
+    apiClient
+      .get<Metric[]>(`/api/v1/devices/${selectedDeviceId}/metrics`)
+      .then((res) => setAvailableMetrics(res.data || []))
       .catch(console.error);
   }, [selectedDeviceId]);
 

@@ -176,7 +176,7 @@ Schema `db/schema-alerts.ts`.
 Aufwand grob: S < M < L. Phasen 0–2 liefern den größten unmittelbaren Mehrwert
 für „beide Säulen“; 3–5 schließen die heutigen Stub-Lücken.
 
-### Phase 0 – Status (laufend)
+### Phase 0 – Status
 
 **Erledigt:**
 - FastAPI-Measurements vervollständigt: `GET /time-series`, `/downsample`,
@@ -184,22 +184,34 @@ für „beide Säulen“; 3–5 schließen die heutigen Stub-Lücken.
   `time_bucket`-Aggregation (`backend/app/api/v1/endpoints/measurements.py`).
 - Anomaly-Quittierung backend-autoritativ (`acknowledged_by` = eingeloggter
   User) + Frontend-Payload/Methode korrigiert (PUT, `{ acknowledged: true }`).
-- Toten Doppel-Code entfernt: Next.js-Routes `anomalies`, `data-sources`,
-  `measurements/query` sowie ungenutzter `lib/services/alert-service.ts`.
+- Geräte-/Metrik-Picker auf FastAPI umgestellt (`explorer-controls.tsx`,
+  `add-widget-dialog.tsx` → `apiClient` `/api/v1/devices`); dazu Device-/Metric-
+  Endpunkte von `int`- auf `UUID`-IDs korrigiert; Next.js-Routes `devices` +
+  `devices/[id]/metrics` entfernt.
+- Annotations: echter FastAPI-Endpunkt auf `chart_annotations`
+  (`backend/.../endpoints/annotations.py` + Model) statt Mock; Komponente
+  umgestellt. Datenqualität wird client-seitig berechnet (`calculateDataQuality`).
+  Next.js-Routes `annotations` + `quality` entfernt.
+- Anomalies-Listen-Client an FastAPI angeglichen (`getAll` → POST `/query` mit
+  paginiertem Wrapper, `getStatistics` → `/stats`, Card liest `acknowledged`).
+- Toter Doppel-Code entfernt: Next.js-Routes `anomalies`, `data-sources`,
+  `measurements/query` + ungenutzter `lib/services/alert-service.ts`.
+- **Ergebnis:** Einziges Runtime-Backend ist FastAPI (0 `@/db`-Importer); unter
+  `app/api/` verbleibt nur noch `auth/[...nextauth]` (NextAuth).
 
-**Noch offen (Restbacklog Phase 0):**
-- Geräte-/Metrik-Picker auf FastAPI umstellen (`explorer-controls.tsx`,
-  `add-widget-dialog.tsx`) und danach die Next.js-Routes `devices` +
-  `devices/[id]/metrics` entfernen.
-- Annotations & Datenqualität nach FastAPI portieren
-  (`/api/v1/annotations`, `/api/v1/quality`) und Komponenten umstellen; danach
-  Next.js-Routes `annotations` + `quality` entfernen.
-- Anomalies-Listen-Client an FastAPI angleichen (`getAll` → POST `/query`,
-  `getStatistics` → `/stats`).
-- Erst wenn keine `@/db`-Importe mehr bestehen: Drizzle-Runtime entfernen und
-  DDL-Quelle festlegen (Alembic ODER Drizzle-Migrations als alleinige Quelle).
-- **Verifikation gegen laufenden Stack** (FastAPI + TimescaleDB) für die neuen
-  Measurement-Endpunkte steht noch aus (im Container nicht ausführbar).
+**Entscheidung (DDL-Quelle):**
+- Die **Drizzle-SQL-Migrations** (`db/migrations/*.sql`) bleiben die alleinige
+  DDL-Quelle (sie erzeugen Hypertable, Continuous Aggregates und die Advanced-
+  Tabellen); FastAPI/SQLAlchemy mappt darauf. Drizzle wird zur **Laufzeit nicht
+  mehr** genutzt. Ein Umbau auf Alembic ist optionale spätere Arbeit.
+
+**Offene Caveats:**
+- **Verifikation gegen laufenden FastAPI+TimescaleDB-Stack** steht aus (im
+  Container nicht ausführbar): neue Measurement-Endpunkte, Annotation-Endpunkt,
+  UUID-Device-Endpunkte, Anomalie-Quittierung.
+- Anomalie-**Status-Semantik** (new/resolved/false_positive) ist backend-seitig
+  nur als `acknowledged`-Bool abgebildet → Stats-Kacheln „Resolved/New“ zeigen
+  ggf. 0. Vollständige Status-Angleichung ist Daten-Modell-Arbeit für Phase 1/2.
 
 ---
 

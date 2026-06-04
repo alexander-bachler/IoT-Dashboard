@@ -8,6 +8,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { CheckCircle2, AlertCircle, XCircle, Info } from 'lucide-react';
+import { calculateDataQuality } from '@/lib/services/anomaly-detection';
 
 interface DataQualityBadgeProps {
   data: Array<{ time: string; value: number }>;
@@ -16,7 +17,6 @@ interface DataQualityBadgeProps {
 
 export function DataQualityBadge({ data, expectedInterval = 60000 }: DataQualityBadgeProps) {
   const [quality, setQuality] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (data.length === 0) {
@@ -24,33 +24,16 @@ export function DataQualityBadge({ data, expectedInterval = 60000 }: DataQuality
       return;
     }
 
-    const calculateQuality = async () => {
-      setIsLoading(true);
-      try {
-        const response = await fetch('/api/quality', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            data,
-            expectedInterval,
-          }),
-        });
-
-        const result = await response.json();
-        setQuality(result.quality);
-      } catch (error) {
-        console.error('Error calculating quality:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    calculateQuality();
+    // Pure client-side computation (no backend round-trip needed)
+    try {
+      setQuality(calculateDataQuality(data, expectedInterval));
+    } catch (error) {
+      console.error('Error calculating quality:', error);
+      setQuality(null);
+    }
   }, [data, expectedInterval]);
 
-  if (!quality || isLoading) {
+  if (!quality) {
     return null;
   }
 

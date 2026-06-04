@@ -61,7 +61,7 @@ function AnomalyCard({ anomaly }: { anomaly: any }) {
     }
   };
 
-  const isAcknowledged = anomaly.status === 'acknowledged' || anomaly.status === 'resolved';
+  const isAcknowledged = anomaly.acknowledged === true;
 
   return (
     <div
@@ -84,7 +84,7 @@ function AnomalyCard({ anomaly }: { anomaly: any }) {
               {isAcknowledged && (
                 <Badge variant="default" className="bg-green-500/20 text-green-500 border-green-500/30">
                   <Check className="h-3 w-3 mr-1" />
-                  {anomaly.status}
+                  acknowledged
                 </Badge>
               )}
             </div>

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useExplorerStore, ChartType, TimeRangePreset } from '@/lib/stores/explorer-store';
 import { RefreshCw, BarChart3 } from 'lucide-react';
 import { CustomTimeRangeDialog } from './custom-time-range-dialog';
+import apiClient from '@/lib/api/client';
 
 interface Device {
   id: string;
@@ -54,9 +55,9 @@ export function ExplorerControls({}: ExplorerControlsProps = {}) {
 
   // Load devices on mount
   useEffect(() => {
-    fetch('/api/devices')
-      .then((res) => res.json())
-      .then((data) => setDevices(data.devices || []))
+    apiClient
+      .get<Device[]>('/api/v1/devices')
+      .then((res) => setDevices(res.data || []))
       .catch(console.error);
   }, []);
 
@@ -67,9 +68,9 @@ export function ExplorerControls({}: ExplorerControlsProps = {}) {
       return;
     }
 
-    fetch(`/api/devices/${selectedDeviceId}/metrics`)
-      .then((res) => res.json())
-      .then((data) => setAvailableMetrics(data.metrics || []))
+    apiClient
+      .get<Metric[]>(`/api/v1/devices/${selectedDeviceId}/metrics`)
+      .then((res) => setAvailableMetrics(res.data || []))
       .catch(console.error);
   }, [selectedDeviceId]);
 

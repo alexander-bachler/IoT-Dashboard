@@ -3,6 +3,7 @@
 import ReactECharts from 'echarts-for-react';
 import { useMemo, useEffect, useState } from 'react';
 import { getChartToolbox, getDataZoom } from '@/lib/utils/chart-toolbox';
+import apiClient from '@/lib/api/client';
 
 interface Annotation {
   id: string;
@@ -50,14 +51,17 @@ export function ChartWithAnnotations({
 
     const fetchAnnotations = async () => {
       try {
-        const params = new URLSearchParams({
-          startTime: timeRange.start.toISOString(),
-          endTime: timeRange.end.toISOString(),
+        const response = await apiClient.get<any[]>('/api/v1/annotations', {
+          params: {
+            start_time: timeRange.start.toISOString(),
+            end_time: timeRange.end.toISOString(),
+          },
         });
-
-        const response = await fetch(`/api/annotations?${params}`);
-        const data = await response.json();
-        setAnnotations(data.annotations || []);
+        const data = (response.data || []).map((a: any) => ({
+          ...a,
+          endTimestamp: a.endTimestamp ?? a.end_timestamp,
+        }));
+        setAnnotations(data);
       } catch (error) {
         console.error('Error fetching annotations:', error);
       }

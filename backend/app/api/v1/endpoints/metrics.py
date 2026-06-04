@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
+from uuid import UUID
 
 from app.db.database import get_db
 from app.models.user import User
@@ -17,7 +18,7 @@ router = APIRouter()
 
 @router.get("/", response_model=List[MetricResponse])
 async def get_metrics(
-    device_id: int | None = None,
+    device_id: UUID | None = None,
     skip: int = 0,
     limit: int = 50,
     current_user: User = Depends(get_current_user),
@@ -72,7 +73,7 @@ async def create_metric(
 
 @router.put("/{metric_id}", response_model=MetricResponse)
 async def update_metric(
-    metric_id: int,
+    metric_id: UUID,
     metric_in: MetricUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -104,7 +105,7 @@ async def update_metric(
 
 @router.delete("/{metric_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_metric(
-    metric_id: int,
+    metric_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):

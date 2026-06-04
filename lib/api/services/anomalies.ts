@@ -13,16 +13,36 @@ export const anomaliesApi = {
    * Get all anomalies with filtering and pagination
    */
   getAll: async (params?: AnomalyQueryParams): Promise<PaginatedResponse<Anomaly>> => {
-    const response = await apiClient.get<PaginatedResponse<Anomaly>>(BASE_PATH, {
-      params: {
-        ...params,
-        metric_ids: params?.metric_ids?.join(','),
-        device_ids: params?.device_ids?.join(','),
-        severity: params?.severity?.join(','),
-        status: params?.status?.join(','),
-      },
+    // The backend exposes POST /query (AnomalyQuery body) and returns a plain list.
+    // Map the frontend filters and wrap the result in a paginated envelope.
+    const statuses = params?.status;
+    const acknowledged = statuses?.includes('acknowledged')
+      ? true
+      : statuses?.includes('new')
+      ? false
+      : undefined;
+
+    const limit = params?.limit ?? 50;
+    const offset = params?.offset ?? 0;
+
+    const response = await apiClient.post<Anomaly[]>(`${BASE_PATH}/query`, {
+      metric_ids: params?.metric_ids,
+      severity: params?.severity,
+      acknowledged,
+      start_time: params?.start_time,
+      end_time: params?.end_time,
+      limit,
+      offset,
     });
-    return response.data;
+
+    const items = response.data || [];
+    return {
+      data: items,
+      total: items.length,
+      page: Math.floor(offset / limit) + 1,
+      page_size: limit,
+      total_pages: 1,
+    };
   },
 
   /**
@@ -67,11 +87,12 @@ export const anomaliesApi = {
     end_time?: string;
   }): Promise<{
     total: number;
-    by_severity: Record<string, number>;
-    by_status: Record<string, number>;
-    trend: Array<{ date: string; count: number }>;
+    by_severity?: Record<string, number>;
+    by_acknowledged?: Record<string, number>;
+    by_status?: Record<string, number>;
+    recent_count?: number;
   }> => {
-    const response = await apiClient.get(`${BASE_PATH}/statistics`, { params });
+    const response = await apiClient.get(`${BASE_PATH}/stats`, { params });
     return response.data;
   },
 
