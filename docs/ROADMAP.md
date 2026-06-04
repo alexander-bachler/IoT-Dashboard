@@ -291,6 +291,11 @@ für „beide Säulen“; 3–5 schließen die heutigen Stub-Lücken.
   (11 Tests: Short/ISO-Intervalle, Default/Injection-Fallback, Cagg-Routing,
   count-gewichtete Re-Aggregation, LTTB-Invarianten inkl. Spike-Erhalt) — lokal
   alle grün; läuft in CI via `pytest` (in `requirements`).
+- **CI-Pipeline** (`.github/workflows/ci.yml`): zwei Jobs — Frontend
+  (`npm ci` + `next build` als Typecheck-/Build-Gate; bewusst kein nacktes
+  `tsc`, da Test-Dateien vorbestehende Fehler haben) und Backend
+  (`pip install -r backend/requirements.txt` + `pytest`). Erzwingt den
+  aufgebauten Verifikations-Stand bei jedem Push/PR.
 
 **Noch offen (Phase 2, Auswahl):**
 - Dashboard-**Variablen** (z. B. `$device`) mit Auto-Binding an Widgets &
