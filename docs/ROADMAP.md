@@ -291,20 +291,24 @@ für „beide Säulen“; 3–5 schließen die heutigen Stub-Lücken.
   (11 Tests: Short/ISO-Intervalle, Default/Injection-Fallback, Cagg-Routing,
   count-gewichtete Re-Aggregation, LTTB-Invarianten inkl. Spike-Erhalt) — lokal
   alle grün; läuft in CI via `pytest` (in `requirements`).
-- **CI-Pipeline** (`.github/workflows/ci.yml`): zwei Jobs — Frontend
-  (`npm ci` + `next build` als Typecheck-/Build-Gate; bewusst kein nacktes
-  `tsc`, da Test-Dateien vorbestehende Fehler haben) und Backend
-  (`pip install -r backend/requirements.txt` + `pytest`). Erzwingt den
-  aufgebauten Verifikations-Stand bei jedem Push/PR. **Verifiziert**: Lauf #1
-  Backend-Job grün auf echtem CI; `pytest`-Collection via `backend/pytest.ini`
-  auf `tests/` eingegrenzt.
+- **CI-Pipeline** (`.github/workflows/ci.yml`): **drei** Jobs bei jedem Push/PR —
+  Frontend (`npm ci` + `next build`), Backend (`pytest`) und **Integration**
+  (TimescaleDB-Service → Drizzle-SQL-Migrations via `psql` → FastAPI per
+  `uvicorn` → `smoke_test.py`). **Alle drei grün auf echtem CI verifiziert.**
 - **E2E-Smoke-Test** (`backend/scripts/smoke_test.py`): dependency-freies
   stdlib-Skript gegen einen **laufenden** Stack — Login (OAuth2 password grant),
   Read-Endpunkte (data-sources/devices/metrics/dashboards/anomalies-stats),
-  Measurements-Kette (device→metrics→time-series mit `interval=1h`) und ein
-  **Dashboard-CRUD-Round-Trip**, der den `config`/UUID-Contract end-to-end
-  prüft. Exit≠0 bei Fehlern (CI/cron-tauglich). Schließt die einzige
-  verbleibende Verifikationslücke, sobald der Stack läuft.
+  Measurements-Kette (device→metrics→time-series mit `interval=1h`, trifft die
+  stündliche Continuous Aggregate) und ein **Dashboard-CRUD-Round-Trip**.
+  Folgt 307/308-Trailing-Slash-Redirects (Methode+Body). **Lauf grün: 8/8
+  Checks gegen echte TimescaleDB** (inkl. CRUD mit echter UUID → validiert die
+  `config`/UUID-Contract-Fixes end-to-end).
+- **Vom Integrations-Job gefundene reale Bugs** (die Build/Typecheck/Unit-Tests
+  nicht sehen konnten):
+  - `data_sources.py` hatte einen **hartkodierten absoluten Upload-Pfad**, der
+    beim Import angelegt wurde → App startete auf **keinem** anderen Host als der
+    ursprünglichen Dev-Box. Behoben: Pfad relativ zu `backend/` (per `UPLOAD_DIR`
+    überschreibbar) + defensives `mkdir`.
 
 **Noch offen (Phase 2, Auswahl):**
 - Dashboard-**Variablen** (z. B. `$device`) mit Auto-Binding an Widgets &
