@@ -8,6 +8,8 @@ from sqlalchemy import select, func, text, delete, bindparam
 from typing import List, Optional, Dict, Tuple
 from datetime import datetime, timezone, timedelta
 from uuid import UUID
+from collections import defaultdict
+import logging
 
 from app.db.database import get_db
 from app.models.user import User
@@ -29,8 +31,57 @@ from app.services.timeseries import (
     continuous_aggregate_for as _continuous_aggregate_for,
     lttb_indices as _lttb_indices,
 )
+from app.models.alert import AlertRule, AlertEvent
+from app.services.alert_rules import find_breaches
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# Cap alert events created per ingest call, to avoid floods on bulk inserts.
+_MAX_INGEST_ALERT_EVENTS = 100
+
+
+async def _run_alert_rules(
+    db: AsyncSession, metric_points: Dict[UUID, List[Tuple[datetime, float]]]
+) -> None:
+    """Evaluate active alert rules against freshly-ingested points and record events.
+
+    Best-effort: callers wrap this so a failure never blocks ingestion.
+    """
+    if not metric_points:
+        return
+    rules = (
+        await db.execute(
+            select(AlertRule).where(
+                AlertRule.metric_id.in_(list(metric_points.keys())),
+                AlertRule.is_active.is_(True),
+            )
+        )
+    ).scalars().all()
+    if not rules:
+        return
+
+    now = datetime.now(timezone.utc)
+    created = 0
+    for rule in rules:
+        points = metric_points.get(rule.metric_id, [])
+        breaches = find_breaches(points, rule.condition, rule.threshold)
+        if not breaches:
+            continue
+        for mtime, mvalue in breaches[:_MAX_INGEST_ALERT_EVENTS]:
+            db.add(
+                AlertEvent(
+                    alert_rule_id=rule.id,
+                    triggered_at=now,
+                    measurement_value=mvalue,
+                    measurement_time=mtime,
+                    status="active",
+                )
+            )
+            created += 1
+        rule.last_triggered = now
+    if created:
+        await db.commit()
 
 
 @router.post("/query", response_model=List[TimeSeriesData])
@@ -139,6 +190,14 @@ async def create_measurement(
     await db.commit()
     await db.refresh(measurement)
 
+    # Auto-evaluate alert rules against the new point (best-effort).
+    try:
+        await _run_alert_rules(
+            db, {measurement.metric_id: [(measurement.time, float(measurement.value))]}
+        )
+    except Exception:  # noqa: BLE001 - never block ingest on alerting
+        logger.warning("Alert evaluation on ingest failed", exc_info=True)
+
     return measurement
 
 
@@ -177,6 +236,15 @@ async def create_measurements_batch(
     measurements = [Measurement(**m.dict()) for m in valid_measurements]
     db.add_all(measurements)
     await db.commit()
+
+    # Auto-evaluate alert rules against the new points (best-effort).
+    try:
+        metric_points: Dict[UUID, List[Tuple[datetime, float]]] = defaultdict(list)
+        for m in measurements:
+            metric_points[m.metric_id].append((m.time, float(m.value)))
+        await _run_alert_rules(db, metric_points)
+    except Exception:  # noqa: BLE001 - never block ingest on alerting
+        logger.warning("Alert evaluation on batch ingest failed", exc_info=True)
 
     return {"count": len(measurements), "message": "Measurements created successfully"}
 

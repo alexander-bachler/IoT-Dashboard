@@ -20,7 +20,7 @@
 | Dashboards | ✅ funktionsfähig | Postgres via FastAPI + Zustand/localStorage | globaler Zeitraum- & Data-Source-Filter vorhanden; Templates ohne Auto-Binding, kein Sharing |
 | Calculations | ✅ funktionsfähig | FastAPI (`/calculations`) + Formel-Engine + Editor mit Charts + **als Dashboard-Widget** nutzbar | — |
 | Reports | ✅ funktionsfähig | FastAPI (`/reports`) + Generator + Frontend (Definitionen, Generate-Vorschau, CSV) | Scheduler/PDF/Excel/Mail = Stub |
-| Alerts/Rules | ✅ funktionsfähig | FastAPI (`/alerts`) + Engine + Frontend (Rules/Events/Acknowledge) | Auswertung bei Ingest + echter Notification-Versand offen (Stub) |
+| Alerts/Rules | ✅ funktionsfähig | FastAPI (`/alerts`) + Engine + Frontend + **Auto-Eval bei Ingest** | echter Notification-Versand offen (Stub) |
 | LineMetrics-Anbindung | ✅ neu verdrahtet | FastAPI (OAuth2 password grant) | E2E-Test gegen echte API ausstehend |
 
 **Architektur-Notiz (wichtig):** Es existieren zwei Backends parallel –
@@ -359,11 +359,16 @@ für „beide Säulen“; 3–5 schließen die heutigen Stub-Lücken.
   **Generate** mit Sections-Statistik-Tabelle und **CSV-Download**. Build/tsc/
   vitest grün.
 
+- **Alerts – Auto-Eval bei Ingest**: `POST /measurements` und `/batch` werten
+  nach dem Insert aktive Regeln der betroffenen Metriken aus und legen je Breach
+  ein Event an (best-effort, gekappt auf 100). Reine Breach-Logik
+  (`find_breaches`) pytest-getestet.
+
 **Noch offen (Phase 2, Auswahl):**
 - **Reports**: Cron-Scheduler (Auto-Run) + echtes PDF/Excel-Rendering +
   Mailversand statt Stub.
-- **Alerts**: Auswertung bei Ingest (statt manuellem Evaluate) + echter
-  Notification-Versand (E-Mail/Webhook) statt Stub.
+- **Alerts**: echter Notification-Versand (E-Mail/Webhook) statt Stub.
+- **Dashboard-Variablen** (`$device`) mit Auto-Binding.
 - Calculation-Ergebnisse als **Dashboard-Widget** verwendbar machen (auf der
   Calculations-Seite werden sie bereits als Chart dargestellt). **Erledigt** —
   „Add Widget" bietet jetzt die Quelle *Calculation*; das Widget evaluiert
