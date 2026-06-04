@@ -36,7 +36,7 @@ export function DashboardWidget({
   const [series, setSeries] = useState<Series[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isConfigureOpen, setIsConfigureOpen] = useState(false);
-  const { selectedDataSourceIds, globalTimeRange } = useDashboardStore();
+  const { selectedDataSourceIds, globalTimeRange, refreshNonce } = useDashboardStore();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -101,7 +101,7 @@ export function DashboardWidget({
       const interval = setInterval(fetchData, widget.refreshInterval * 1000);
       return () => clearInterval(interval);
     }
-  }, [widget, selectedDataSourceIds, globalTimeRange]);
+  }, [widget, selectedDataSourceIds, globalTimeRange, refreshNonce]);
 
   return (
     <>

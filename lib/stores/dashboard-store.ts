@@ -65,6 +65,13 @@ export interface DashboardState {
   globalTimeRange: string | null;
   setGlobalTimeRange: (value: string | null) => void;
 
+  // Global auto-refresh interval in seconds (0 = off) and a manual refresh
+  // trigger. Widgets watch `refreshNonce` to refetch in lock-step.
+  globalRefreshInterval: number;
+  setGlobalRefreshInterval: (seconds: number) => void;
+  refreshNonce: number;
+  triggerRefresh: () => void;
+
   // Reset
   reset: () => void;
 }
@@ -121,6 +128,11 @@ export const useDashboardStore = create<DashboardState>()(
       globalTimeRange: null,
       setGlobalTimeRange: (value) => set({ globalTimeRange: value }),
 
+      globalRefreshInterval: 0,
+      setGlobalRefreshInterval: (seconds) => set({ globalRefreshInterval: seconds }),
+      refreshNonce: 0,
+      triggerRefresh: () => set((state) => ({ refreshNonce: state.refreshNonce + 1 })),
+
       reset: () =>
         set({
           currentDashboardId: null,
@@ -129,10 +141,21 @@ export const useDashboardStore = create<DashboardState>()(
           isEditMode: false,
           selectedDataSourceIds: [],
           globalTimeRange: null,
+          globalRefreshInterval: 0,
         }),
     }),
     {
       name: 'dashboard-store',
+      // Persist data/config only — never the transient refresh trigger.
+      partialize: (state) => ({
+        currentDashboardId: state.currentDashboardId,
+        layout: state.layout,
+        widgets: state.widgets,
+        isEditMode: state.isEditMode,
+        selectedDataSourceIds: state.selectedDataSourceIds,
+        globalTimeRange: state.globalTimeRange,
+        globalRefreshInterval: state.globalRefreshInterval,
+      }),
     }
   )
 );

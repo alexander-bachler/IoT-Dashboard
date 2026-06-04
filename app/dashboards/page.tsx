@@ -9,6 +9,7 @@ import { AddWidgetDialog } from '@/components/dashboard/add-widget-dialog';
 import { TemplateSelector } from '@/components/dashboard/template-selector';
 import { DataSourceFilter } from '@/components/dashboard/datasource-filter';
 import { TimeRangeFilter } from '@/components/dashboard/time-range-filter';
+import { DashboardRefresh } from '@/components/dashboard/dashboard-refresh';
 import { ExportDashboardData } from '@/components/dashboard/export-dashboard-data';
 import { useDashboardStore } from '@/lib/stores/dashboard-store';
 import type { DashboardTemplate } from '@/lib/utils/dashboard-templates';
@@ -61,6 +62,7 @@ export default function DashboardsPage() {
           <DashboardManager />
           <div className="hidden h-6 w-px bg-border sm:block" />
           <TimeRangeFilter />
+          <DashboardRefresh />
           <DataSourceFilter />
           <ExportDashboardData />
           <TemplateSelector onSelectTemplate={handleApplyTemplate} />
