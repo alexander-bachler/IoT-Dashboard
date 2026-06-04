@@ -225,6 +225,42 @@ def main() -> int:
 
     r.check("dashboards CRUD", dashboard_roundtrip)
 
+    # --- Calculations round-trip (formula engine + CRUD + evaluate) ---------
+    print("\nCalculations:")
+
+    def calculations_roundtrip():
+        # A constant formula needs no source metrics, so this works on an empty DB.
+        payload = {
+            "name": "smoke-calc",
+            "formula": "1 + 2 * 3",
+            "source_metric_ids": {},
+            "aggregation_type": "none",
+        }
+        status, created = client.request("POST", f"{API}/calculations", json_body=payload)
+        assert status in (200, 201), f"create status {status}: {created}"
+        calc_id = created["id"]
+        try:
+            status, fetched = client.request("GET", f"{API}/calculations/{calc_id}")
+            assert status == 200, f"get status {status}: {fetched}"
+            assert fetched["formula"] == "1 + 2 * 3", "formula mismatch on read"
+
+            status, result = client.request("POST", f"{API}/calculations/{calc_id}/evaluate")
+            assert status == 200, f"evaluate status {status}: {result}"
+            assert "data" in result and "points" in result, f"unexpected result: {result}"
+
+            # An unsafe / unknown-variable formula must be rejected (400), not 500.
+            status, _ = client.request(
+                "POST", f"{API}/calculations/preview",
+                json_body={"formula": "a * 2", "source_metric_ids": {}},
+            )
+            assert status == 400, f"expected 400 for unknown variable, got {status}"
+        finally:
+            status, _ = client.request("DELETE", f"{API}/calculations/{calc_id}")
+            assert status in (200, 204), f"delete status {status}"
+        return f"create/read/evaluate/validate/delete OK (id={calc_id})"
+
+    r.check("calculations CRUD + preview", calculations_roundtrip)
+
     # --- Summary ------------------------------------------------------------
     total = r.passed + r.failed
     print(f"\n{r.passed}/{total} checks passed.")

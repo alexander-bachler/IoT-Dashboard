@@ -18,7 +18,7 @@
 |---|---|---|---|
 | Zeitreihen-Analyse | ✅ funktionsfähig | TimescaleDB (Continuous Aggregates + `time_bucket`, LTTB für Rohdaten) → FastAPI → ECharts | Saved Views noch client-seitig (localStorage), nicht cross-device |
 | Dashboards | ✅ funktionsfähig | Postgres via FastAPI + Zustand/localStorage | globaler Zeitraum- & Data-Source-Filter vorhanden; Templates ohne Auto-Binding, kein Sharing |
-| Calculations | ❌ Stub | nur Schema | keine Formel-Engine, kein Runner, kein Backend |
+| Calculations | ⚙️ Backend fertig | FastAPI (`/calculations`) + sichere Formel-Engine | Frontend-Wiring (Service/Hooks/Seite) offen |
 | Reports | ❌ Stub | nur Schema | kein Scheduler, keine PDF/Excel-Erzeugung, kein Mailversand |
 | Alerts/Rules | ⚠️ teilweise | Postgres (Rules+Events) | keine Auswertung bei Ingest, kein Notification-Versand |
 | LineMetrics-Anbindung | ✅ neu verdrahtet | FastAPI (OAuth2 password grant) | E2E-Test gegen echte API ausstehend |
@@ -310,7 +310,17 @@ für „beide Säulen“; 3–5 schließen die heutigen Stub-Lücken.
     ursprünglichen Dev-Box. Behoben: Pfad relativ zu `backend/` (per `UPLOAD_DIR`
     überschreibbar) + defensives `mkdir`.
 
+- **Calculations – Backend** (`/api/v1/calculations`): CRUD für abgeleitete
+  Metriken + **sichere Formel-Engine** (`app/services/formula_evaluator.py`,
+  AST-basiert, kein `eval`; Whitelist aus Operatoren/Funktionen). Auswertung
+  bucketweise über die Quell-Metriken (time_bucket, auf gemeinsamen Buckets
+  ausgerichtet) via `POST /preview` (ad-hoc) und `POST /{id}/evaluate`.
+  Owner-scoped. Engine mit pytest abgedeckt (`tests/test_formula_evaluator.py`),
+  CRUD+Preview im Live-E2E-Smoke-Test. **Offen:** Frontend-Wiring.
+
 **Noch offen (Phase 2, Auswahl):**
+- **Calculations – Frontend**: Service/Hooks + `app/calculations/page.tsx`
+  (aktuell Mock) an das neue Backend anbinden (Liste, Editor mit Live-Preview).
 - Dashboard-**Variablen** (z. B. `$device`) mit Auto-Binding an Widgets &
   Templates.
 - Dashboard-**Sharing** / Persistenz pro Dashboard im Backend.
