@@ -36,31 +36,37 @@ export function DashboardWidget({
   const [series, setSeries] = useState<Series[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isConfigureOpen, setIsConfigureOpen] = useState(false);
-  const { selectedDataSourceIds } = useDashboardStore();
+  const { selectedDataSourceIds, globalTimeRange } = useDashboardStore();
 
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
 
       try {
-        // Calculate time range based on widget config
+        // Calculate time range. A global dashboard range (when set) overrides
+        // the widget's own range so all widgets stay in sync.
         const end = new Date();
         const start = new Date();
 
-        if (widget.timeRange.type === 'relative') {
-          switch (widget.timeRange.value) {
-            case 'last_hour':
-              start.setHours(start.getHours() - 1);
-              break;
-            case 'last_24h':
-              start.setDate(start.getDate() - 1);
-              break;
-            case 'last_7d':
-              start.setDate(start.getDate() - 7);
-              break;
-            default:
-              start.setDate(start.getDate() - 1);
-          }
+        const rangeValue =
+          globalTimeRange ||
+          (widget.timeRange.type === 'relative' ? widget.timeRange.value : 'last_24h');
+
+        switch (rangeValue) {
+          case 'last_hour':
+            start.setHours(start.getHours() - 1);
+            break;
+          case 'last_24h':
+            start.setDate(start.getDate() - 1);
+            break;
+          case 'last_7d':
+            start.setDate(start.getDate() - 7);
+            break;
+          case 'last_30d':
+            start.setDate(start.getDate() - 30);
+            break;
+          default:
+            start.setDate(start.getDate() - 1);
         }
 
         const requestBody: any = {
@@ -95,7 +101,7 @@ export function DashboardWidget({
       const interval = setInterval(fetchData, widget.refreshInterval * 1000);
       return () => clearInterval(interval);
     }
-  }, [widget, selectedDataSourceIds]);
+  }, [widget, selectedDataSourceIds, globalTimeRange]);
 
   return (
     <>

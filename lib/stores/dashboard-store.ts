@@ -60,6 +60,11 @@ export interface DashboardState {
   selectedDataSourceIds: string[];
   setSelectedDataSourceIds: (ids: string[]) => void;
 
+  // Global dashboard time range. When set, every widget uses it instead of its
+  // own time range; null means each widget keeps its individual range.
+  globalTimeRange: string | null;
+  setGlobalTimeRange: (value: string | null) => void;
+
   // Reset
   reset: () => void;
 }
@@ -113,6 +118,9 @@ export const useDashboardStore = create<DashboardState>()(
       selectedDataSourceIds: [],
       setSelectedDataSourceIds: (ids) => set({ selectedDataSourceIds: ids }),
 
+      globalTimeRange: null,
+      setGlobalTimeRange: (value) => set({ globalTimeRange: value }),
+
       reset: () =>
         set({
           currentDashboardId: null,
@@ -120,6 +128,7 @@ export const useDashboardStore = create<DashboardState>()(
           widgets: [],
           isEditMode: false,
           selectedDataSourceIds: [],
+          globalTimeRange: null,
         }),
     }),
     {

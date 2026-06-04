@@ -17,7 +17,7 @@
 | Bereich | Status | Persistenz | Zentrale Lücke |
 |---|---|---|---|
 | Zeitreihen-Analyse | ✅ funktionsfähig | TimescaleDB (Continuous Aggregates + `time_bucket`, LTTB für Rohdaten) → FastAPI → ECharts | Saved Views noch client-seitig (localStorage), nicht cross-device |
-| Dashboards | ✅ funktionsfähig | Postgres via FastAPI + Zustand/localStorage | Templates ohne Auto-Binding, keine Variablen/Filter, kein Sharing |
+| Dashboards | ✅ funktionsfähig | Postgres via FastAPI + Zustand/localStorage | globaler Zeitraum- & Data-Source-Filter vorhanden; Templates ohne Auto-Binding, kein Sharing |
 | Calculations | ❌ Stub | nur Schema | keine Formel-Engine, kein Runner, kein Backend |
 | Reports | ❌ Stub | nur Schema | kein Scheduler, keine PDF/Excel-Erzeugung, kein Mailversand |
 | Alerts/Rules | ⚠️ teilweise | Postgres (Rules+Events) | keine Auswertung bei Ingest, kein Notification-Versand |
@@ -254,7 +254,22 @@ für „beide Säulen“; 3–5 schließen die heutigen Stub-Lücken.
   je nach TimescaleDB-Realtime-Setting kann der jeweils letzte Bucket aus
   Rohdaten ergänzt werden. Für Live-Kurzbereiche greift ohnehin der Rohdaten-
   Pfad. Verhalten gegen laufenden Stack verifizieren.
-- Gespeicherte Ansichten (Saved Views) + erweiterte Roll-ups/Variablen.
+
+### Phase 2 – Status (laufend)
+
+**Erledigt:**
+- **Globaler Dashboard-Zeitraum-Filter**: opt-in Time-Picker in der Dashboards-
+  Toolbar (`globalTimeRange` im Store); wenn gesetzt, nutzen **alle** Widgets
+  diesen Zeitraum statt ihres eigenen (Default „Per widget", kein erzwungenes
+  Verhalten). Ergänzt den bestehenden Data-Source-Filter. Build grün.
+
+**Noch offen (Phase 2, Auswahl):**
+- Dashboard-**Variablen** (z. B. `$device`) mit Auto-Binding an Widgets &
+  Templates.
+- Dashboard-**Sharing** / Persistenz pro Dashboard im Backend.
+- **Calculations** (Formel-Engine + Runner) und **Reports** (Scheduler,
+  PDF/Excel, Mailversand) — bisher Stubs.
+- **Alerts**: Auswertung bei Ingest + Notification-Versand.
 
 ---
 
