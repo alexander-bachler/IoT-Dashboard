@@ -353,10 +353,10 @@ export function ETLDesigner() {
 
   return (
     <div className="space-y-4 animate-slide-up">
-      <div className="rounded-xl border p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/20 backdrop-blur-sm">
+      <div className="rounded-xl border border-border p-4 bg-muted/40">
         <div className="flex items-start gap-3">
-          <div className="p-2 rounded-lg bg-purple-500/20">
-            <Info className="h-5 w-5 text-purple-500" />
+          <div className="p-2 rounded-lg bg-muted">
+            <Info className="h-5 w-5 text-muted-foreground" />
           </div>
           <div className="flex-1">
             <h3 className="font-semibold text-sm mb-1">ETL Pipeline Designer</h3>
@@ -369,7 +369,7 @@ export function ETLDesigner() {
       </div>
 
       {/* Data Source Input Selector */}
-      <div className="flex items-center gap-2 p-3 bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-lg">
+      <div className="flex items-center gap-2 p-3 bg-muted/40 border border-border rounded-lg">
         <div className="flex-1 flex items-center gap-2">
           <span className="text-sm font-medium">Add Data Source as Input:</span>
           <Select value={selectedDataSourceForInput} onValueChange={setSelectedDataSourceForInput}>

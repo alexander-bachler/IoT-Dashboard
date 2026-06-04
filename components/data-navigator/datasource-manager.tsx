@@ -80,7 +80,7 @@ function DataSourceCard({ source }: { source: any }) {
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-600/20">
+            <div className="p-2 rounded-lg bg-muted">
               <Database className="h-5 w-5 text-blue-500" />
             </div>
             <div>

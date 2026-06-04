@@ -182,9 +182,6 @@ export default function AnomaliesPage() {
   return (
     <ErrorBoundary>
       <div className="container mx-auto p-6 space-y-6 animate-fade-in">
-        {/* Gradient orbs */}
-        <div className="absolute -top-4 -left-4 w-72 h-72 bg-red-500/20 rounded-full blur-3xl" />
-        <div className="absolute -top-4 -right-4 w-72 h-72 bg-orange-500/20 rounded-full blur-3xl" />
 
         {/* Header */}
         <div className="relative">

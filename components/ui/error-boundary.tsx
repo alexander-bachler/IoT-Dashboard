@@ -42,11 +42,10 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <Card className="p-8 m-4 border-red-500/20 bg-gradient-to-br from-red-500/5 to-orange-500/5">
+        <Card className="p-8 m-4 border-red-500/20 bg-red-500/5">
           <div className="flex flex-col items-center justify-center text-center space-y-4">
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-red-500/20 to-orange-500/20 rounded-full blur-2xl" />
-              <div className="relative p-6 rounded-full bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20">
+            <div>
+              <div className="p-6 rounded-full bg-muted border border-border">
                 <AlertTriangle className="h-12 w-12 text-red-500" />
               </div>
             </div>

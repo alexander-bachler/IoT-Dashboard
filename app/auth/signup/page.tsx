@@ -80,16 +80,12 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Animated gradient orbs */}
-      <div className="absolute -top-40 -left-40 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse-subtle" />
-      <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse-subtle" />
-
+    <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-md glass-card relative z-10">
         <CardHeader className="space-y-1">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600">
-              <Activity className="h-8 w-8 text-white" />
+            <div className="p-3 rounded-xl bg-primary">
+              <Activity className="h-8 w-8 text-primary-foreground" />
             </div>
             <div>
               <CardTitle className="text-2xl gradient-text">Create Account</CardTitle>

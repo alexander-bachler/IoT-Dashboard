@@ -33,65 +33,48 @@
     --chart-4: 47.9 95.8% 53.1%;
     --chart-5: 12.0 88.0% 59.0%;
 
-    /* Custom Design System */
-    --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    --gradient-accent: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-    --gradient-success: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-    --gradient-warning: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-    --gradient-dark: linear-gradient(135deg, #434343 0%, #000000 100%);
+    /* Brand accent gradient — used sparingly (e.g. the logo mark only) */
+    --gradient-brand: linear-gradient(135deg, hsl(221.2 83.2% 53.3%) 0%, hsl(262.1 83.3% 57.8%) 100%);
 
-    /* Glass Effect */
-    --glass-bg: rgba(255, 255, 255, 0.1);
-    --glass-border: rgba(255, 255, 255, 0.18);
-
-    /* Shadows */
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1);
-    --shadow-glow: 0 0 20px rgba(59, 130, 246, 0.5);
+    /* Shadows — soft, neutral */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+    --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.08);
+    --shadow-lg: 0 12px 24px -6px rgb(0 0 0 / 0.10);
   }
 
   .dark {
-    /* Base Colors - Enhanced Dark Theme */
-    --background: 222.2 84% 3%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 5%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 5%;
-    --popover-foreground: 210 40% 98%;
+    /* Base Colors — calm dark theme */
+    --background: 222.2 47% 6%;
+    --foreground: 210 40% 96%;
+    --card: 222.2 40% 9%;
+    --card-foreground: 210 40% 96%;
+    --popover: 222.2 40% 9%;
+    --popover-foreground: 210 40% 96%;
     --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 217.2 32.6% 16%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
+    --muted: 217.2 32.6% 16%;
     --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
+    --accent: 217.2 32.6% 18%;
     --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 50.6%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48.0%;
+    --border: 217.2 32.6% 18%;
+    --input: 217.2 32.6% 18%;
+    --ring: 224.3 76.3% 56%;
 
-    /* Chart Colors - Dark Mode */
+    /* Chart Colors — Dark Mode */
     --chart-1: 217.2 91.2% 59.8%;
     --chart-2: 142.1 70.6% 45.3%;
     --chart-3: 262.1 83.3% 57.8%;
     --chart-4: 47.9 95.8% 53.1%;
     --chart-5: 12.0 76.0% 61.0%;
 
-    /* Glass Effect - Dark Mode */
-    --glass-bg: rgba(15, 23, 42, 0.6);
-    --glass-border: rgba(255, 255, 255, 0.1);
-
-    /* Shadows - Dark Mode */
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5);
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.6);
-    --shadow-glow: 0 0 30px rgba(59, 130, 246, 0.3);
+    /* Shadows — Dark Mode */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.30);
+    --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.45);
+    --shadow-lg: 0 12px 24px -6px rgb(0 0 0 / 0.55);
   }
 }
 
@@ -103,120 +86,78 @@
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+  /* Quiet, consistent headings by default */
+  h1, h2, h3 {
+    @apply tracking-tight;
+  }
 }
 
 @layer components {
-  /* Glass Card Effect */
+  /*
+   * Cleaner SaaS design language. These shared classes are used across many
+   * pages, so keeping them clean here fans out the look with minimal edits.
+   * (Names like .glass-card / .gradient-text are kept for backwards-compat but
+   * intentionally render as neutral, modern styles.)
+   */
+
+  /* Card surface — solid, neutral, soft shadow */
   .glass-card {
-    background: var(--glass-bg);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid var(--glass-border);
-    box-shadow: var(--shadow-lg);
+    @apply rounded-xl border border-border bg-card shadow-sm;
   }
 
-  /* Gradient Text */
+  /* Brand text — solid foreground (no gradient fill) */
   .gradient-text {
-    background: var(--gradient-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    @apply text-foreground;
   }
 
-  /* Gradient Border */
-  .gradient-border {
-    position: relative;
-    background: hsl(var(--card));
-    background-clip: padding-box;
-    border: 2px solid transparent;
-  }
-
-  .gradient-border::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: -1;
-    margin: -2px;
-    border-radius: inherit;
-    background: var(--gradient-primary);
-  }
-
-  /* Glow Effect */
-  .glow {
-    box-shadow: var(--shadow-glow);
-  }
-
-  /* Smooth Transitions */
-  .transition-smooth {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  /* Hover Scale */
-  .hover-scale {
-    @apply transition-transform duration-200 ease-in-out;
-  }
-
-  .hover-scale:hover {
-    transform: scale(1.02);
-  }
-
-  /* Data Card - Modern Style */
-  .data-card {
-    @apply rounded-xl border bg-card/50 backdrop-blur-sm p-6;
-    @apply hover:bg-card/80 transition-all duration-200;
-    @apply shadow-md hover:shadow-xl;
-  }
-
-  /* Metric Card with Gradient */
-  .metric-card {
-    @apply relative overflow-hidden rounded-xl p-6;
-    @apply bg-gradient-to-br from-card to-card/50;
-    @apply border border-border/50;
-    @apply shadow-lg hover:shadow-xl transition-all duration-300;
-  }
-
-  .metric-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: var(--gradient-primary);
-  }
-
-  /* Section Header */
+  /* Section / page title */
   .section-header {
-    @apply text-2xl font-bold mb-6;
-    @apply bg-gradient-to-r from-blue-500 to-purple-600;
-    @apply bg-clip-text text-transparent;
+    @apply mb-6 text-2xl font-semibold tracking-tight text-foreground;
   }
 
-  /* Info Banner */
+  /* Content card */
+  .data-card {
+    @apply rounded-xl border border-border bg-card p-6 shadow-sm;
+    @apply transition-shadow duration-200 hover:shadow-md;
+  }
+
+  /* KPI / metric card */
+  .metric-card {
+    @apply rounded-xl border border-border bg-card p-6 shadow-sm;
+    @apply transition-shadow duration-200 hover:shadow-md;
+  }
+
+  /* Neutral bordered container (back-compat alias) */
+  .gradient-border {
+    @apply rounded-xl border border-border bg-card;
+  }
+
+  /* Subtle, restrained hover (no scale jump) */
+  .hover-scale {
+    @apply transition-all duration-200;
+  }
+  .hover-scale:hover {
+    box-shadow: var(--shadow-md);
+  }
+
+  /* Back-compat: previously a colored glow — now a soft neutral shadow */
+  .glow {
+    box-shadow: var(--shadow-sm);
+  }
+
+  .transition-smooth {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Semantic notice banners — subtle tints */
   .info-banner {
-    @apply rounded-xl border p-4;
-    @apply bg-gradient-to-r from-blue-500/10 to-purple-500/10;
-    @apply border-blue-500/20;
-    @apply backdrop-blur-sm;
+    @apply rounded-xl border border-primary/20 bg-primary/5 p-4;
   }
-
-  /* Success Banner */
   .success-banner {
-    @apply rounded-xl border p-4;
-    @apply bg-gradient-to-r from-green-500/10 to-emerald-500/10;
-    @apply border-green-500/20;
-    @apply backdrop-blur-sm;
+    @apply rounded-xl border border-green-500/20 bg-green-500/5 p-4;
   }
-
-  /* Warning Banner */
   .warning-banner {
-    @apply rounded-xl border p-4;
-    @apply bg-gradient-to-r from-yellow-500/10 to-orange-500/10;
-    @apply border-yellow-500/20;
-    @apply backdrop-blur-sm;
+    @apply rounded-xl border border-amber-500/20 bg-amber-500/5 p-4;
   }
 
   /* Custom Scrollbar */
@@ -224,77 +165,56 @@
     width: 8px;
     height: 8px;
   }
-
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: hsl(var(--muted));
-    border-radius: 4px;
+    background: transparent;
   }
-
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: hsl(var(--primary));
-    border-radius: 4px;
+    background: hsl(var(--border));
+    border-radius: 9999px;
   }
-
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--primary) / 0.8);
+    background: hsl(var(--muted-foreground) / 0.5);
   }
 }
 
 @layer utilities {
-  /* Animation Utilities */
   .animate-in {
     animation: animate-in 0.3s ease-out;
   }
-
   @keyframes animate-in {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   .animate-fade-in {
-    animation: fade-in 0.5s ease-out;
+    animation: fade-in 0.4s ease-out;
   }
-
   @keyframes fade-in {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 
   .animate-slide-up {
-    animation: slide-up 0.4s ease-out;
+    animation: slide-up 0.35s ease-out;
+  }
+  @keyframes slide-up {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
-  @keyframes slide-up {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+  .animate-slide-down {
+    animation: slide-down 0.35s ease-out;
+  }
+  @keyframes slide-down {
+    from { opacity: 0; transform: translateY(-12px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   .animate-pulse-subtle {
     animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
-
   @keyframes pulse-subtle {
-    0%, 100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.8;
-    }
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
   }
 }

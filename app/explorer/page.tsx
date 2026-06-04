@@ -298,15 +298,11 @@ export default function ExplorerPage() {
   return (
     <ErrorBoundary>
       <div className="container mx-auto p-6 space-y-6 animate-fade-in">
-        {/* Gradient orbs */}
-        <div className="absolute -top-4 -left-4 w-72 h-72 bg-blue-500/20 rounded-full blur-3xl" />
-        <div className="absolute -top-4 -right-4 w-72 h-72 bg-cyan-500/20 rounded-full blur-3xl" />
-
         {/* Header */}
         <div className="relative">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600">
-              <Activity className="h-6 w-6 text-white" />
+            <div className="p-2 rounded-xl bg-primary">
+              <Activity className="h-6 w-6 text-primary-foreground" />
             </div>
             <h1 className="section-header mb-0">Data Explorer</h1>
           </div>
