@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Calculator, Save, Trash2, Play, X, Loader2 } from 'lucide-react';
+import { Plus, Calculator, Save, Trash2, Play, X, Loader2, BarChart3, ChevronDown, ChevronUp } from 'lucide-react';
 import apiClient from '@/lib/api/client';
 import {
   useCalculations,
@@ -16,7 +16,9 @@ import {
   useDeleteCalculation,
   usePreviewCalculation,
 } from '@/lib/hooks/use-calculations';
-import type { CalculationResult } from '@/lib/api/types';
+import { calculationsApi } from '@/lib/api/services/calculations';
+import { TimeSeriesChart } from '@/components/explorer/time-series-chart';
+import type { Calculation, CalculationResult } from '@/lib/api/types';
 
 interface Device {
   id: string;
@@ -107,6 +109,87 @@ function VariableRow({
         <X className="h-4 w-4" />
       </Button>
     </div>
+  );
+}
+
+function CalculationCard({ calc, onDelete }: { calc: Calculation; onDelete: () => void }) {
+  const [result, setResult] = useState<CalculationResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (next && !result && !loading) {
+      setLoading(true);
+      calculationsApi
+        .evaluate(calc.id)
+        .then(setResult)
+        .catch(() => setResult(null))
+        .finally(() => setLoading(false));
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <CardTitle className="flex items-center gap-2">
+              <Calculator className="h-5 w-5 shrink-0" />
+              {calc.name}
+            </CardTitle>
+            <CardDescription className="mt-2 font-mono break-all">{calc.formula}</CardDescription>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="shrink-0 text-muted-foreground hover:text-destructive"
+            onClick={onDelete}
+            aria-label={`Delete ${calc.name}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline">
+            {Object.keys(calc.source_metric_ids || {}).length} variable(s)
+          </Badge>
+          {calc.unit && <Badge variant="outline">Unit: {calc.unit}</Badge>}
+          <Badge variant="outline" className="capitalize">
+            Agg: {calc.aggregation_type}
+          </Badge>
+          <Button variant="outline" size="sm" className="ml-auto" onClick={toggle}>
+            <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
+            Evaluate
+            {open ? <ChevronUp className="ml-1 h-3.5 w-3.5" /> : <ChevronDown className="ml-1 h-3.5 w-3.5" />}
+          </Button>
+        </div>
+
+        {open && (
+          <div>
+            {result?.aggregate != null && (
+              <div className="mb-2 text-sm">
+                Aggregate (<span className="font-mono">{calc.aggregation_type}</span>):{' '}
+                <span className="font-mono font-semibold">{result.aggregate.toFixed(3)}</span>
+                {calc.unit ? ` ${calc.unit}` : ''}
+              </div>
+            )}
+            <TimeSeriesChart
+              series={
+                result && result.data.length > 0
+                  ? [{ metricId: calc.id, metricName: calc.name, metricUnit: calc.unit, data: result.data }]
+                  : []
+              }
+              chartType="line"
+              isLoading={loading}
+            />
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -330,6 +413,19 @@ export default function CalculationsPage() {
                     )}
                   </div>
                 )}
+                {preview && !previewError && preview.data.length > 0 && (
+                  <TimeSeriesChart
+                    series={[
+                      {
+                        metricId: 'preview',
+                        metricName: name || 'Preview',
+                        metricUnit: unit,
+                        data: preview.data,
+                      },
+                    ]}
+                    chartType="line"
+                  />
+                )}
               </CardContent>
             </Card>
           ) : (
@@ -353,43 +449,13 @@ export default function CalculationsPage() {
                 </Card>
               ) : (
                 calculations.map((calc) => (
-                  <Card key={calc.id}>
-                    <CardHeader>
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <CardTitle className="flex items-center gap-2">
-                            <Calculator className="h-5 w-5 shrink-0" />
-                            {calc.name}
-                          </CardTitle>
-                          <CardDescription className="mt-2 font-mono break-all">
-                            {calc.formula}
-                          </CardDescription>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="shrink-0 text-muted-foreground hover:text-destructive"
-                          onClick={() => {
-                            if (window.confirm(`Delete calculation "${calc.name}"?`)) deleteCalc.mutate(calc.id);
-                          }}
-                          aria-label={`Delete ${calc.name}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex flex-wrap gap-2">
-                        <Badge variant="outline">
-                          {Object.keys(calc.source_metric_ids || {}).length} variable(s)
-                        </Badge>
-                        {calc.unit && <Badge variant="outline">Unit: {calc.unit}</Badge>}
-                        <Badge variant="outline" className="capitalize">
-                          Agg: {calc.aggregation_type}
-                        </Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <CalculationCard
+                    key={calc.id}
+                    calc={calc}
+                    onDelete={() => {
+                      if (window.confirm(`Delete calculation "${calc.name}"?`)) deleteCalc.mutate(calc.id);
+                    }}
+                  />
                 ))
               )}
             </div>
