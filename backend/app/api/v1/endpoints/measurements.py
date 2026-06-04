@@ -72,10 +72,10 @@ async def query_time_series(
             select(Measurement)
             .where(
                 Measurement.metric_id == metric_id,
-                Measurement.timestamp >= query.start_time,
-                Measurement.timestamp <= query.end_time
+                Measurement.time >= query.start_time,
+                Measurement.time <= query.end_time
             )
-            .order_by(Measurement.timestamp)
+            .order_by(Measurement.time)
         )
 
         if query.limit:
@@ -87,7 +87,7 @@ async def query_time_series(
         # Convert to data points
         data_points = [
             TimeSeriesDataPoint(
-                time=m.timestamp.isoformat(),
+                time=m.time.isoformat(),
                 value=m.value,
                 quality=m.quality
             )
@@ -201,19 +201,19 @@ async def get_measurement_stats(
 
     # Build query
     query = select(
-        func.count(Measurement.id).label("count"),
+        func.count(Measurement.time).label("count"),
         func.min(Measurement.value).label("min"),
         func.max(Measurement.value).label("max"),
         func.avg(Measurement.value).label("avg"),
         func.sum(Measurement.value).label("sum"),
-        func.min(Measurement.timestamp).label("first_timestamp"),
-        func.max(Measurement.timestamp).label("last_timestamp"),
+        func.min(Measurement.time).label("first_timestamp"),
+        func.max(Measurement.time).label("last_timestamp"),
     ).where(Measurement.metric_id == metric_id)
 
     if start_time:
-        query = query.where(Measurement.timestamp >= start_time)
+        query = query.where(Measurement.time >= start_time)
     if end_time:
-        query = query.where(Measurement.timestamp <= end_time)
+        query = query.where(Measurement.time <= end_time)
 
     result = await db.execute(query)
     stats = result.one()
@@ -247,6 +247,56 @@ _AGG_FUNCS = {
     "avg": "AVG", "average": "AVG", "mean": "AVG",
     "sum": "SUM", "min": "MIN", "max": "MAX", "count": "COUNT",
 }
+
+# Seconds per interval unit, used to decide which source a bucket query hits.
+_UNIT_SECONDS = {"seconds": 1, "minutes": 60, "hours": 3600, "days": 86400, "weeks": 604800}
+_HOUR_SECONDS = 3600
+_DAY_SECONDS = 86400
+
+# TimescaleDB continuous aggregates (materialized views) defined in
+# db/migrations/0000_setup_timescaledb.sql. Each pre-aggregates raw measurements
+# into hourly/daily buckets with avg/min/max/count per (metric_id, device_id).
+_CAGG_HOURLY = "measurements_hourly"
+_CAGG_DAILY = "measurements_daily"
+
+# How to re-aggregate the pre-aggregated columns when re-bucketing a continuous
+# aggregate into a coarser interval. AVG/SUM are count-weighted so the result is
+# exact (not an average-of-averages).
+_CAGG_VALUE_EXPR = {
+    "AVG": "SUM(avg_value * count) / NULLIF(SUM(count), 0)",
+    "SUM": "SUM(avg_value * count)",
+    "MIN": "MIN(min_value)",
+    "MAX": "MAX(max_value)",
+    "COUNT": "SUM(count)",
+}
+
+
+def _interval_seconds(pg_interval: str) -> Optional[int]:
+    """Seconds in a normalised Postgres interval literal ('15 minutes' -> 900)."""
+    m = re.fullmatch(r"(\d+)\s+(seconds|minutes|hours|days|weeks)", pg_interval)
+    if not m:
+        return None
+    return int(m.group(1)) * _UNIT_SECONDS[m.group(2)]
+
+
+def _continuous_aggregate_for(pg_interval: str) -> Optional[str]:
+    """Pick the materialized view that can answer this bucket interval exactly.
+
+    Returns the daily view when the interval is a whole number of days, the
+    hourly view when it is a whole number of hours, otherwise None (which means
+    query the raw hypertable). Requiring an exact multiple guarantees the
+    re-bucketed boundaries align with the pre-aggregated rows, so no accuracy is
+    lost vs. scanning raw data.
+    """
+    secs = _interval_seconds(pg_interval)
+    if not secs:
+        return None
+    if secs % _DAY_SECONDS == 0:
+        return _CAGG_DAILY
+    if secs % _HOUR_SECONDS == 0:
+        return _CAGG_HOURLY
+    return None
+
 
 
 def _to_pg_interval(value: Optional[str], default: str = "1 hour") -> str:
@@ -319,22 +369,46 @@ async def _bucketed_series(
     interval: Optional[str],
     aggregation: Optional[str],
 ) -> List[TimeSeriesData]:
-    """Aggregate measurements into time buckets via TimescaleDB time_bucket()."""
+    """Aggregate measurements into time buckets via TimescaleDB time_bucket().
+
+    For coarse intervals (whole hours/days) the query is served from the
+    pre-materialized continuous aggregates instead of the raw hypertable, which
+    avoids scanning every raw row over long time ranges. Finer/odd intervals
+    fall back to the raw `measurements` table. The view name and aggregation
+    expression come from internal whitelists, and the interval is normalised, so
+    the f-string interpolation below is not user-controlled.
+    """
     agg = _AGG_FUNCS.get((aggregation or "avg").lower(), "AVG")
     pg_interval = _to_pg_interval(interval)
+    view = _continuous_aggregate_for(pg_interval)
 
-    stmt = text(
-        f"""
-        SELECT metric_id,
-               time_bucket(CAST(:interval AS interval), time) AS bucket,
-               {agg}(value) AS value
-        FROM measurements
-        WHERE metric_id IN :ids
-          AND time >= :start_time AND time <= :end_time
-        GROUP BY metric_id, bucket
-        ORDER BY bucket ASC
-        """
-    ).bindparams(bindparam("ids", expanding=True))
+    if view:
+        value_expr = _CAGG_VALUE_EXPR[agg]
+        stmt = text(
+            f"""
+            SELECT metric_id,
+                   time_bucket(CAST(:interval AS interval), bucket) AS b,
+                   {value_expr} AS value
+            FROM {view}
+            WHERE metric_id IN :ids
+              AND bucket >= :start_time AND bucket <= :end_time
+            GROUP BY metric_id, time_bucket(CAST(:interval AS interval), bucket)
+            ORDER BY b ASC
+            """
+        ).bindparams(bindparam("ids", expanding=True))
+    else:
+        stmt = text(
+            f"""
+            SELECT metric_id,
+                   time_bucket(CAST(:interval AS interval), time) AS b,
+                   {agg}(value) AS value
+            FROM measurements
+            WHERE metric_id IN :ids
+              AND time >= :start_time AND time <= :end_time
+            GROUP BY metric_id, time_bucket(CAST(:interval AS interval), time)
+            ORDER BY b ASC
+            """
+        ).bindparams(bindparam("ids", expanding=True))
 
     result = await db.execute(
         stmt,

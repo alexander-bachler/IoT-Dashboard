@@ -16,7 +16,7 @@
 
 | Bereich | Status | Persistenz | Zentrale Lücke |
 |---|---|---|---|
-| Zeitreihen-Analyse | ✅ funktionsfähig | TimescaleDB (`time_bucket`) → Next.js-Route → ECharts | begrenzte Roll-ups, kein LTTB-Downsampling, keine gespeicherten Ansichten |
+| Zeitreihen-Analyse | ✅ funktionsfähig | TimescaleDB (Continuous Aggregates + `time_bucket`) → FastAPI → ECharts | kein LTTB-Downsampling, keine gespeicherten Ansichten |
 | Dashboards | ✅ funktionsfähig | Postgres via FastAPI + Zustand/localStorage | Templates ohne Auto-Binding, keine Variablen/Filter, kein Sharing |
 | Calculations | ❌ Stub | nur Schema | keine Formel-Engine, kein Runner, kein Backend |
 | Reports | ❌ Stub | nur Schema | kein Scheduler, keine PDF/Excel-Erzeugung, kein Mailversand |
@@ -212,6 +212,33 @@ für „beide Säulen“; 3–5 schließen die heutigen Stub-Lücken.
 - Anomalie-**Status-Semantik** (new/resolved/false_positive) ist backend-seitig
   nur als `acknowledged`-Bool abgebildet → Stats-Kacheln „Resolved/New“ zeigen
   ggf. 0. Vollständige Status-Angleichung ist Daten-Modell-Arbeit für Phase 1/2.
+
+### Phase 1 – Status (laufend)
+
+**Erledigt:**
+- **Materialized Views (Continuous Aggregates) werden jetzt genutzt.** Die in
+  `0000_setup_timescaledb.sql` definierten Views `measurements_hourly` /
+  `measurements_daily` waren bisher totes Kapital — das Backend bucketete immer
+  über die rohe Hypertable. `_bucketed_series` (versorgt `/time-series` und
+  `/downsample`) wählt nun die Quelle nach Intervall:
+  - Intervall = ganzzahlige Tage → `measurements_daily`
+  - Intervall = ganzzahlige Stunden → `measurements_hourly`
+  - sonst (sub-stündlich/ungerade) → rohe `measurements`.
+  Beim Re-Bucketing der Views wird **count-gewichtet** aggregiert
+  (`SUM(avg_value*count)/SUM(count)`), sodass das Ergebnis exakt dem Rohdaten-
+  Aggregat entspricht (kein „Average-of-Averages“).
+- Latente Bugs in den Legacy-Measurement-Endpunkten gefixt
+  (`POST /query`, `GET /stats`): `Measurement.timestamp`/`.id` → korrekte
+  Spalte `time` (verhinderte sonst Laufzeit-`AttributeError`).
+
+**Noch offen (Phase 1):**
+- **LTTB-Downsampling** für rohe/feingranulare Bereiche (visuell verlustarme
+  Punktreduktion), ergänzend zur Cagg-Aggregation.
+- **Freshness-Hinweis:** Die Cagg-Refresh-Policies haben `end_offset` (1h/1d);
+  je nach TimescaleDB-Realtime-Setting kann der jeweils letzte Bucket aus
+  Rohdaten ergänzt werden. Für Live-Kurzbereiche greift ohnehin der Rohdaten-
+  Pfad. Verhalten gegen laufenden Stack verifizieren.
+- Gespeicherte Ansichten (Saved Views) + erweiterte Roll-ups/Variablen.
 
 ---
 
