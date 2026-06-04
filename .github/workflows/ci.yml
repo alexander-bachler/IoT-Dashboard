@@ -86,31 +86,36 @@ jobs:
             echo "Applying $f"
             psql -h localhost -p 5432 -U iot_user -d iot_analytics -v ON_ERROR_STOP=1 -f "$f"
           done
-      - name: Start API
+      # Start the API and use it in a SINGLE step: a process backgrounded in one
+      # step does not reliably survive into the next step on GitHub Actions.
+      - name: Start API and run smoke test
         working-directory: backend
         run: |
+          set -euo pipefail
           uvicorn app.main:app --host 0.0.0.0 --port 8000 > /tmp/api.log 2>&1 &
-          echo "uvicorn started"
-      - name: Wait for API health
-        run: |
-          for i in $(seq 1 30); do
+          API_PID=$!
+          # Always surface the uvicorn log when this step ends.
+          trap 'echo "=== uvicorn log ==="; cat /tmp/api.log || true' EXIT
+
+          echo "Waiting for API health..."
+          for i in $(seq 1 45); do
             if curl -sf http://localhost:8000/health > /dev/null; then
-              echo "API healthy"; exit 0
+              echo "API healthy"; break
+            fi
+            if ! kill -0 "$API_PID" 2>/dev/null; then
+              echo "uvicorn exited during startup"; exit 1
             fi
             sleep 2
           done
-          echo "API did not become healthy in time"; exit 1
-      - name: Register smoke-test user
-        run: |
-          curl -sf -X POST http://localhost:8000/api/v1/auth/register \
+          curl -sf http://localhost:8000/health > /dev/null || { echo "API never became healthy"; exit 1; }
+
+          echo "Registering smoke-test user..."
+          curl -s -o /dev/null -w 'register HTTP %{http_code}\n' \
+            -X POST http://localhost:8000/api/v1/auth/register \
             -H 'Content-Type: application/json' \
-            -d '{"email":"smoke@example.com","username":"smoke","password":"smoke-password-123"}' \
-            || echo "register returned non-2xx (user may already exist) — continuing"
-      - name: Run smoke test
-        run: |
-          python backend/scripts/smoke_test.py \
+            -d '{"email":"smoke@example.com","username":"smoke","password":"smoke-password-123"}' || true
+
+          echo "Running smoke test..."
+          python scripts/smoke_test.py \
             --base-url http://localhost:8000 \
             --username smoke --password smoke-password-123
-      - name: API logs (on failure)
-        if: failure()
-        run: cat /tmp/api.log || true
