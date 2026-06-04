@@ -220,6 +220,8 @@ function AddDataSourceDialog({ open, onOpenChange, onSuccess }: { open: boolean;
   const [apiToken, setApiToken] = useState('');
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
+  const [lmUsername, setLmUsername] = useState('');
+  const [lmPassword, setLmPassword] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -236,6 +238,8 @@ function AddDataSourceDialog({ open, onOpenChange, onSuccess }: { open: boolean;
           api_url: apiUrl,
           client_id: clientId,
           client_secret: clientSecret,
+          username: lmUsername,
+          password: lmPassword,
         });
 
         const result = response.data;
@@ -330,6 +334,8 @@ function AddDataSourceDialog({ open, onOpenChange, onSuccess }: { open: boolean;
     setApiToken('');
     setClientId('');
     setClientSecret('');
+    setLmUsername('');
+    setLmPassword('');
     setDescription('');
     setSelectedFile(null);
   };
@@ -343,7 +349,7 @@ function AddDataSourceDialog({ open, onOpenChange, onSuccess }: { open: boolean;
 
   const isSubmitDisabled = () => {
     if (type === 'linemetrics') {
-      return !name || !apiUrl || !clientId || !clientSecret || loading;
+      return !name || !apiUrl || !clientId || !clientSecret || !lmUsername || !lmPassword || loading;
     }
     if (type === 'file') {
       return !name || loading;
@@ -470,6 +476,31 @@ function AddDataSourceDialog({ open, onOpenChange, onSuccess }: { open: boolean;
                   onChange={(e) => setClientSecret(e.target.value)}
                   placeholder="Your LineMetrics OAuth2 Client Secret"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="lmUsername">Username (Email) *</Label>
+                <Input
+                  id="lmUsername"
+                  value={lmUsername}
+                  onChange={(e) => setLmUsername(e.target.value)}
+                  placeholder="Your LineMetrics account email"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="lmPassword">Password *</Label>
+                <Input
+                  id="lmPassword"
+                  type="password"
+                  value={lmPassword}
+                  onChange={(e) => setLmPassword(e.target.value)}
+                  placeholder="Your LineMetrics account password"
+                />
+                <p className="text-xs text-muted-foreground">
+                  LineMetrics uses the OAuth2 password grant; credentials are stored
+                  server-side with this connection.
+                </p>
               </div>
             </>
           ) : (

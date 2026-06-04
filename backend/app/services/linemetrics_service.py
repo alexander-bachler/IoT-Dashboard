@@ -2,12 +2,12 @@
 LineMetrics Integration Service
 
 Handles synchronization and data import from LineMetrics API v2
-Authentication: OAuth2 Client Credentials
+Authentication: OAuth2 Resource Owner Password Credentials grant
 """
 
 import httpx
 from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -17,19 +17,24 @@ from app.models.user import User
 
 
 class LineMetricsConfig:
-    """Configuration for LineMetrics API v2 with OAuth2"""
+    """Configuration for LineMetrics API v2 with OAuth2 password grant"""
 
     def __init__(
         self,
         api_url: str = "https://rest-api.linemetrics.com",
         client_id: Optional[str] = None,
         client_secret: Optional[str] = None,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
         **kwargs,  # Accept but ignore old parameters
     ):
         self.api_url = api_url.rstrip("/")
         self.client_id = client_id
         self.client_secret = client_secret
+        self.username = username
+        self.password = password
         self.access_token: Optional[str] = None
+        self.refresh_token: Optional[str] = None
         self.token_expiry: Optional[datetime] = None
 
 
@@ -52,33 +57,99 @@ class LineMetricsService:
         await self.client.aclose()
 
     async def authenticate(self) -> None:
-        """Authenticate with LineMetrics API using OAuth2 client credentials"""
-        if not self.config.client_id or not self.config.client_secret:
-            raise ValueError("Client ID and Client Secret are required")
+        """
+        Authenticate with LineMetrics API using the OAuth2 Resource Owner
+        Password Credentials grant (client_id + client_secret + username + password).
 
-        # Check if token is still valid
+        Reuses a cached token while valid, transparently refreshes via the
+        refresh_token grant when possible, and falls back to a full password
+        grant otherwise.
+        """
+        if not all(
+            [
+                self.config.client_id,
+                self.config.client_secret,
+                self.config.username,
+                self.config.password,
+            ]
+        ):
+            raise ValueError(
+                "client_id, client_secret, username and password are required "
+                "for LineMetrics authentication"
+            )
+
+        # Reuse a cached token while it is still valid
         if self.config.access_token and self.config.token_expiry:
             if datetime.utcnow() < self.config.token_expiry:
                 self.client.headers["Authorization"] = f"Bearer {self.config.access_token}"
                 return
 
-        # Request new access token
-        response = await self.client.post(
-            "/oauth/access_token",
-            json={
-                "client_id": self.config.client_id,
-                "client_secret": self.config.client_secret,
-                "grant_type": "client_credentials",
-            },
-        )
-        response.raise_for_status()
-        data = response.json()
+        data: Optional[Dict[str, Any]] = None
+
+        # Prefer a refresh-token grant if we have one
+        if self.config.refresh_token:
+            try:
+                data = await self._request_token(
+                    {
+                        "client_id": self.config.client_id,
+                        "client_secret": self.config.client_secret,
+                        "grant_type": "refresh_token",
+                        "refresh_token": self.config.refresh_token,
+                    }
+                )
+            except Exception:
+                data = None  # fall back to a full password grant
+
+        if data is None:
+            data = await self._request_token(
+                {
+                    "client_id": self.config.client_id,
+                    "client_secret": self.config.client_secret,
+                    "grant_type": "password",
+                    "username": self.config.username,
+                    "password": self.config.password,
+                }
+            )
 
         self.config.access_token = data.get("access_token")
-        # Token typically expires in 1 hour, set expiry to 55 minutes
-        self.config.token_expiry = datetime.utcnow() + timedelta(minutes=55)
+        # Keep any previous refresh token if the response does not return a new one
+        self.config.refresh_token = data.get("refresh_token") or self.config.refresh_token
+        # Honour the server-provided lifetime; refresh 60s early
+        expires_in = int(data.get("expires_in", 3600))
+        self.config.token_expiry = datetime.utcnow() + timedelta(
+            seconds=max(expires_in - 60, 60)
+        )
 
         self.client.headers["Authorization"] = f"Bearer {self.config.access_token}"
+
+    async def _request_token(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Request an OAuth token from /oauth/access_token.
+
+        The OAuth endpoint lives at the host root (no /v2 prefix) and must NOT
+        carry a Bearer token, so any stale Authorization header is removed first.
+        """
+        self.client.headers.pop("Authorization", None)
+
+        response = await self.client.post(
+            "/oauth/access_token",
+            json=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        response.raise_for_status()
+
+        # After token expiry a CDN may answer a redirect with an HTML login page
+        # and a 200 status, so assert we actually received JSON before parsing.
+        content_type = response.headers.get("content-type", "")
+        if "application/json" not in content_type.lower():
+            raise ValueError(
+                "Unexpected non-JSON response from LineMetrics OAuth endpoint"
+            )
+
+        data = response.json()
+        if not data.get("access_token"):
+            raise ValueError("LineMetrics OAuth response did not contain an access_token")
+        return data
 
     async def get_account(self) -> Dict[str, Any]:
         """Get account information"""
@@ -211,11 +282,11 @@ class LineMetricsService:
         """
         results = []
 
-        # Map aggregation names
+        # Map UI aggregation names to LineMetrics API function names
         function_map = {
             "none": "last_value",
-            "avg": "avg",
-            "average": "avg",
+            "avg": "average",
+            "average": "average",
             "min": "min",
             "minimum": "min",
             "max": "max",
@@ -224,8 +295,10 @@ class LineMetricsService:
             "total": "sum",
             "last": "last_value",
             "last_value": "last_value",
+            "raw": "raw",
+            "default": "default",
         }
-        function = function_map.get(aggregation.lower(), "avg")
+        function = function_map.get(aggregation.lower(), "average")
 
         for stream_id in stream_ids:
             try:
@@ -438,7 +511,7 @@ async def import_linemetrics_measurements(
                     .join(DataSource)
                     .where(
                         Metric.external_id == stream_id,
-                        DataSource.user_id == user.id,
+                        DataSource.owner_id == user.id,
                     )
                 )
                 metric = result.scalar_one_or_none()
@@ -457,15 +530,18 @@ async def import_linemetrics_measurements(
                     if timestamp_ms is None or value is None:
                         continue
 
-                    # Convert Unix milliseconds to datetime
-                    timestamp = datetime.fromtimestamp(timestamp_ms / 1000.0)
+                    # LineMetrics timestamps are Unix epoch milliseconds in UTC
+                    timestamp = datetime.fromtimestamp(
+                        timestamp_ms / 1000.0, tz=timezone.utc
+                    )
 
-                    # Create measurement
+                    # Create measurement (device_id is required and quality is a label)
                     measurement = Measurement(
                         time=timestamp,
                         metric_id=metric.id,
+                        device_id=metric.device_id,
                         value=float(value),
-                        quality=1.0,  # LineMetrics doesn't provide quality
+                        quality="good",  # LineMetrics doesn't provide a quality flag
                     )
                     db.add(measurement)
                     stats["measurements_imported"] += 1
