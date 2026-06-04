@@ -294,6 +294,42 @@ def main() -> int:
 
     r.check("alerts rules/events + validation", alerts_checks)
 
+    # --- Reports (definitions + generation) ---------------------------------
+    print("\nReports:")
+
+    def reports_roundtrip():
+        status, listing = client.request("GET", f"{API}/reports")
+        assert status == 200 and isinstance(listing, list), f"reports list: {status}"
+
+        # Invalid format must be rejected.
+        status, _ = client.request(
+            "POST", f"{API}/reports",
+            json_body={"name": "x", "schedule": "0 0 * * *", "format": "docx", "configuration": {}},
+        )
+        assert status == 400, f"expected 400 for bad format, got {status}"
+
+        # A metrics report with no metrics works on an empty DB (empty sections).
+        payload = {
+            "name": "smoke-report", "schedule": "0 0 * * *", "type": "metrics",
+            "format": "json", "recipients": [], "configuration": {"metric_ids": []},
+        }
+        status, created = client.request("POST", f"{API}/reports", json_body=payload)
+        assert status in (200, 201), f"create status {status}: {created}"
+        report_id = created["id"]
+        try:
+            status, result = client.request("POST", f"{API}/reports/{report_id}/generate")
+            assert status == 200, f"generate status {status}: {result}"
+            assert "sections" in result and "csv" in result, f"unexpected result: {result}"
+
+            status, hist = client.request("GET", f"{API}/reports/{report_id}/history")
+            assert status == 200 and isinstance(hist, list) and len(hist) >= 1, f"history {status}: {hist}"
+        finally:
+            status, _ = client.request("DELETE", f"{API}/reports/{report_id}")
+            assert status in (200, 204), f"delete status {status}"
+        return f"create/generate/history/delete OK (id={report_id})"
+
+    r.check("reports CRUD + generate", reports_roundtrip)
+
     # --- Summary ------------------------------------------------------------
     total = r.passed + r.failed
     print(f"\n{r.passed}/{total} checks passed.")
