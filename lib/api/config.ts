@@ -51,29 +51,29 @@ export const API_ENDPOINTS = {
   // Data Sources
   dataSources: {
     list: '/api/v1/data-sources',
-    get: (id: number) => `/api/v1/data-sources/${id}`,
+    get: (id: string) => `/api/v1/data-sources/${id}`,
     create: '/api/v1/data-sources',
-    update: (id: number) => `/api/v1/data-sources/${id}`,
-    delete: (id: number) => `/api/v1/data-sources/${id}`,
-    stats: (id: number) => `/api/v1/data-sources/${id}/stats`,
-    sync: (id: number) => `/api/v1/data-sources/${id}/sync`,
+    update: (id: string) => `/api/v1/data-sources/${id}`,
+    delete: (id: string) => `/api/v1/data-sources/${id}`,
+    stats: (id: string) => `/api/v1/data-sources/${id}/stats`,
+    sync: (id: string) => `/api/v1/data-sources/${id}/sync`,
   },
 
   // Devices
   devices: {
     list: '/api/v1/devices',
-    get: (id: number) => `/api/v1/devices/${id}`,
+    get: (id: string) => `/api/v1/devices/${id}`,
     create: '/api/v1/devices',
-    update: (id: number) => `/api/v1/devices/${id}`,
-    delete: (id: number) => `/api/v1/devices/${id}`,
+    update: (id: string) => `/api/v1/devices/${id}`,
+    delete: (id: string) => `/api/v1/devices/${id}`,
   },
 
   // Metrics
   metrics: {
     list: '/api/v1/metrics',
     create: '/api/v1/metrics',
-    update: (id: number) => `/api/v1/metrics/${id}`,
-    delete: (id: number) => `/api/v1/metrics/${id}`,
+    update: (id: string) => `/api/v1/metrics/${id}`,
+    delete: (id: string) => `/api/v1/metrics/${id}`,
   },
 
   // Measurements
@@ -89,6 +89,6 @@ export const API_ENDPOINTS = {
     query: '/api/v1/anomalies/query',
     stats: '/api/v1/anomalies/stats',
     create: '/api/v1/anomalies',
-    update: (id: number) => `/api/v1/anomalies/${id}`,
+    update: (id: string) => `/api/v1/anomalies/${id}`,
   },
 } as const;

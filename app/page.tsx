@@ -81,9 +81,9 @@ function LiveStatsCards() {
     );
   }
 
-  const dataSourcesList = dataSources?.data || [];
-  const totalSources = dataSources?.total || 0;
-  const activeSources = dataSourcesList.filter((s) => s.status === 'active').length;
+  const dataSourcesList = dataSources || [];
+  const totalSources = dataSourcesList.length;
+  const activeSources = dataSourcesList.filter((s) => s.is_active).length;
   const totalDevices = dataSourcesList.reduce((acc, s) => acc + (s.device_count || 0), 0);
   const criticalAnomalies = recentAnomalies?.filter((a) => a.severity === 'critical').length || 0;
 

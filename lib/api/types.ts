@@ -6,7 +6,7 @@ export interface DataSource {
   id: string;
   name: string;
   type: 'api' | 'mqtt' | 'database' | 'file';
-  status: 'active' | 'inactive' | 'error';
+  is_active: boolean;
   api_url?: string;
   api_token?: string;
   description?: string;

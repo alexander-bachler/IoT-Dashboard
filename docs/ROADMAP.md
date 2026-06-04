@@ -273,6 +273,17 @@ für „beide Säulen“; 3–5 schließen die heutigen Stub-Lücken.
   Backend-Dashboard-IDs `int`→`UUID`, kein `parseInt` mehr. Die globalen
   Einstellungen (Zeitraum/Refresh/Data-Sources) werden als `config.settings`
   **pro Dashboard** mitgespeichert und beim Laden wiederhergestellt.
+- **Systematischer Contract-Audit** (Frontend ↔ FastAPI) durchgeführt und
+  restliche Drift-Bugs behoben:
+  - `int`-Pfadparameter → `UUID`: letzter Fall `GET /measurements/stats`
+    (`metric_id`). Sweep zeigt: keine weiteren `int`-IDs im Backend.
+  - `lib/api/config.ts`: 11 Endpunkt-Helfer von `(id: number)` → `(id: string)`
+    (data-sources/devices/metrics/anomalies sind UUID-Ressourcen).
+  - **Data-Sources-Drift behoben**: Backend liefert ein **Array** mit
+    `is_active`; Frontend erwartete fälschlich paginiert (`.data`/`.total`) und
+    `status` → Home-Stats und Manager-Kacheln zeigten 0/„Errors". Typ, Service,
+    Home-Seite und Manager auf Array + `is_active` ausgerichtet.
+  - Verifiziert: tsc (keine neuen Fehler), `next build` grün.
 
 **Noch offen (Phase 2, Auswahl):**
 - Dashboard-**Variablen** (z. B. `$device`) mit Auto-Binding an Widgets &

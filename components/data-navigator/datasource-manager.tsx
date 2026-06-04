@@ -555,8 +555,8 @@ function AddDataSourceDialog({ open, onOpenChange, onSuccess }: { open: boolean;
 function StatsCards({ dataSources }: { dataSources: any[] }) {
   if (!dataSources || dataSources.length === 0) return null;
 
-  const activeCount = dataSources.filter((s) => s?.status === 'active').length;
-  const errorCount = dataSources.filter((s) => s?.status === 'error').length;
+  const activeCount = dataSources.filter((s) => s?.is_active).length;
+  const inactiveCount = dataSources.filter((s) => !s?.is_active).length;
   const totalDevices = dataSources.reduce((acc, s) => acc + (s?.device_count || 0), 0);
 
   return (
@@ -587,12 +587,12 @@ function StatsCards({ dataSources }: { dataSources: any[] }) {
 
       <div className="metric-card hover-scale">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-red-500/20">
-            <XCircle className="h-5 w-5 text-red-500" />
+          <div className="p-2 rounded-lg bg-muted">
+            <XCircle className="h-5 w-5 text-muted-foreground" />
           </div>
           <div>
-            <div className="text-sm text-muted-foreground">Errors</div>
-            <div className="text-2xl font-bold gradient-text">{errorCount}</div>
+            <div className="text-sm text-muted-foreground">Inactive</div>
+            <div className="text-2xl font-bold gradient-text">{inactiveCount}</div>
           </div>
         </div>
       </div>
@@ -627,8 +627,8 @@ export function DataSourceManager() {
     { enabled: isAuthenticated && mounted }
   );
 
-  // API returns array directly, not paginated object
-  const dataSources = Array.isArray(data) ? data : (data?.data ?? []);
+  // API returns an array directly.
+  const dataSources = data ?? [];
 
   const handleAddSuccess = () => {
     refetch();

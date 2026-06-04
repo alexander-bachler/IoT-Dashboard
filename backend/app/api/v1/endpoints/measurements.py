@@ -177,7 +177,7 @@ async def create_measurements_batch(
 
 @router.get("/stats", response_model=MeasurementStats)
 async def get_measurement_stats(
-    metric_id: int,
+    metric_id: UUID,
     start_time: datetime | None = None,
     end_time: datetime | None = None,
     current_user: User = Depends(get_current_user),
