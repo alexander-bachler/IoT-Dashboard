@@ -20,7 +20,7 @@
 | Dashboards | ✅ funktionsfähig | Postgres via FastAPI + Zustand/localStorage | globaler Zeitraum- & Data-Source-Filter vorhanden; Templates ohne Auto-Binding, kein Sharing |
 | Calculations | ✅ funktionsfähig | FastAPI (`/calculations`) + Formel-Engine + Editor mit Charts + **als Dashboard-Widget** nutzbar | — |
 | Reports | ❌ Stub | nur Schema | kein Scheduler, keine PDF/Excel-Erzeugung, kein Mailversand |
-| Alerts/Rules | ⚙️ Backend (Engine + CRUD + Evaluate) | FastAPI (`/alerts`) + reine Regel-Engine | Frontend, Auswertung bei Ingest, Notification-Versand (Stub) offen |
+| Alerts/Rules | ✅ funktionsfähig | FastAPI (`/alerts`) + Engine + Frontend (Rules/Events/Acknowledge) | Auswertung bei Ingest + echter Notification-Versand offen (Stub) |
 | LineMetrics-Anbindung | ✅ neu verdrahtet | FastAPI (OAuth2 password grant) | E2E-Test gegen echte API ausstehend |
 
 **Architektur-Notiz (wichtig):** Es existieren zwei Backends parallel –
@@ -341,9 +341,14 @@ für „beide Säulen“; 3–5 schließen die heutigen Stub-Lücken.
   im Live-E2E-Smoke-Test. **Offen:** Frontend, Auswertung bei Ingest, echter
   Versand.
 
+- **Alerts – Frontend** (`app/alerts/page.tsx`, im „More"-Menü): Rules-Manager
+  (Anlegen mit Geräte-/Metrik-Picker, Condition, Schwellwert, Severity; Liste mit
+  Evaluate/Delete) und Events-Tab mit Acknowledge. API-Service + Hooks. Build/tsc/
+  vitest grün.
+
 **Noch offen (Phase 2, Auswahl):**
-- **Alerts – Frontend** + Auswertung bei Ingest + echter Notification-Versand
-  (E-Mail/Webhook).
+- **Alerts**: Auswertung bei Ingest (statt manuellem Evaluate) + echter
+  Notification-Versand (E-Mail/Webhook) statt Stub.
 - Calculation-Ergebnisse als **Dashboard-Widget** verwendbar machen (auf der
   Calculations-Seite werden sie bereits als Chart dargestellt). **Erledigt** —
   „Add Widget" bietet jetzt die Quelle *Calculation*; das Widget evaluiert

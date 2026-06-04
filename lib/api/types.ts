@@ -241,6 +241,70 @@ export interface CalculationResult {
 }
 
 // ============================================
+// Alert Types
+// ============================================
+
+export type AlertCondition =
+  | 'greater_than'
+  | 'less_than'
+  | 'greater_or_equal'
+  | 'less_or_equal'
+  | 'equal_to'
+  | 'not_equal_to';
+
+export type AlertSeverity = 'info' | 'warning' | 'critical';
+
+export interface AlertRule {
+  id: string;
+  name: string;
+  description?: string;
+  metric_id: string;
+  device_id?: string;
+  condition: AlertCondition;
+  threshold: number;
+  duration?: string;
+  severity: AlertSeverity;
+  notification_channels?: string[];
+  notification_config?: Record<string, any>;
+  is_active: boolean;
+  last_triggered?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface CreateAlertRuleDto {
+  name: string;
+  description?: string;
+  metric_id: string;
+  device_id?: string;
+  condition: AlertCondition;
+  threshold: number;
+  severity: AlertSeverity;
+  notification_channels?: string[];
+  is_active?: boolean;
+}
+
+export interface AlertEvent {
+  id: string;
+  alert_rule_id: string;
+  triggered_at: string;
+  resolved_at?: string;
+  measurement_value: number;
+  measurement_time: string;
+  status: 'active' | 'resolved' | 'acknowledged';
+  acknowledged_by?: string;
+  acknowledged_at?: string;
+  created_at: string;
+}
+
+export interface AlertEvaluationResult {
+  rule_id: string;
+  evaluated_points: number;
+  breaches: number;
+  events: AlertEvent[];
+}
+
+// ============================================
 // Chart Configuration Types
 // ============================================
 

@@ -15,6 +15,7 @@ import {
   Server,
   Calculator,
   FileText,
+  Bell,
   Zap,
   LogOut,
   User,
@@ -48,6 +49,7 @@ const primaryNav: NavItem[] = [
 const secondaryNav: NavItem[] = [
   { name: 'Data Sources', href: '/data-sources', icon: Server },
   { name: 'Calculations', href: '/calculations', icon: Calculator },
+  { name: 'Alerts', href: '/alerts', icon: Bell },
   { name: 'Reports', href: '/reports', icon: FileText },
 ];
 

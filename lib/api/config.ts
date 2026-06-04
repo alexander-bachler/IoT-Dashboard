@@ -102,4 +102,13 @@ export const API_ENDPOINTS = {
     preview: '/api/v1/calculations/preview',
     evaluate: (id: string) => `/api/v1/calculations/${id}/evaluate`,
   },
+
+  // Alerts
+  alerts: {
+    rules: '/api/v1/alerts/rules',
+    rule: (id: string) => `/api/v1/alerts/rules/${id}`,
+    evaluate: (id: string) => `/api/v1/alerts/rules/${id}/evaluate`,
+    events: '/api/v1/alerts/events',
+    acknowledge: (id: string) => `/api/v1/alerts/events/${id}/acknowledge`,
+  },
 } as const;
