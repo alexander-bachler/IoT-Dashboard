@@ -18,7 +18,7 @@
 |---|---|---|---|
 | Zeitreihen-Analyse | ✅ funktionsfähig | TimescaleDB (Continuous Aggregates + `time_bucket`, LTTB für Rohdaten) → FastAPI → ECharts | Saved Views noch client-seitig (localStorage), nicht cross-device |
 | Dashboards | ✅ funktionsfähig | Postgres via FastAPI + Zustand/localStorage | globaler Zeitraum- & Data-Source-Filter vorhanden; Templates ohne Auto-Binding, kein Sharing |
-| Calculations | ✅ funktionsfähig | FastAPI (`/calculations`) + Formel-Engine + Editor mit Live-Preview-**Chart** + „Evaluate"-Chart je Karte | Verwendung als Serie in Dashboard-Widgets offen |
+| Calculations | ✅ funktionsfähig | FastAPI (`/calculations`) + Formel-Engine + Editor mit Charts + **als Dashboard-Widget** nutzbar | — |
 | Reports | ❌ Stub | nur Schema | kein Scheduler, keine PDF/Excel-Erzeugung, kein Mailversand |
 | Alerts/Rules | ⚠️ teilweise | Postgres (Rules+Events) | keine Auswertung bei Ingest, kein Notification-Versand |
 | LineMetrics-Anbindung | ✅ neu verdrahtet | FastAPI (OAuth2 password grant) | E2E-Test gegen echte API ausstehend |
@@ -333,7 +333,10 @@ für „beide Säulen“; 3–5 schließen die heutigen Stub-Lücken.
 
 **Noch offen (Phase 2, Auswahl):**
 - Calculation-Ergebnisse als **Dashboard-Widget** verwendbar machen (auf der
-  Calculations-Seite werden sie bereits als Chart dargestellt).
+  Calculations-Seite werden sie bereits als Chart dargestellt). **Erledigt** —
+  „Add Widget" bietet jetzt die Quelle *Calculation*; das Widget evaluiert
+  `/{id}/evaluate` über den (globalen) Zeitraum und wird mit dem Dashboard
+  persistiert.
 - Dashboard-**Variablen** (z. B. `$device`) mit Auto-Binding an Widgets &
   Templates.
 - Dashboard-**Sharing** / Persistenz pro Dashboard im Backend.

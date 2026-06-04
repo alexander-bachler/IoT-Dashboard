@@ -9,6 +9,7 @@ import type { WidgetConfig } from '@/lib/stores/dashboard-store';
 import { useDashboardStore } from '@/lib/stores/dashboard-store';
 import { ConfigureWidgetDialog } from './configure-widget-dialog';
 import apiClient from '@/lib/api/client';
+import { calculationsApi } from '@/lib/api/services/calculations';
 
 interface DashboardWidgetProps {
   widget: WidgetConfig;
@@ -69,23 +70,37 @@ export function DashboardWidget({
             start.setDate(start.getDate() - 1);
         }
 
-        const requestBody: any = {
-          metric_ids: widget.metricIds,
-          start_time: start.toISOString(),
-          end_time: end.toISOString(),
-        };
+        if (widget.calculationId) {
+          // Calculation-backed widget: evaluate the derived series.
+          const result = await calculationsApi.evaluate(widget.calculationId, {
+            start_time: start.toISOString(),
+            end_time: end.toISOString(),
+            interval: widget.aggregationInterval,
+          });
+          setSeries(
+            result.data && result.data.length > 0
+              ? [{ metricId: widget.calculationId, metricName: widget.title, data: result.data }]
+              : []
+          );
+        } else {
+          const requestBody: any = {
+            metric_ids: widget.metricIds,
+            start_time: start.toISOString(),
+            end_time: end.toISOString(),
+          };
 
-        // Add data source filter if selected
-        if (selectedDataSourceIds.length > 0) {
-          requestBody.data_source_ids = selectedDataSourceIds;
+          // Add data source filter if selected
+          if (selectedDataSourceIds.length > 0) {
+            requestBody.data_source_ids = selectedDataSourceIds;
+          }
+
+          if (widget.aggregationInterval) {
+            requestBody.aggregation = widget.aggregationInterval;
+          }
+
+          const response = await apiClient.post('/api/v1/measurements/query', requestBody);
+          setSeries(response.data || []);
         }
-
-        if (widget.aggregationInterval) {
-          requestBody.aggregation = widget.aggregationInterval;
-        }
-
-        const response = await apiClient.post('/api/v1/measurements/query', requestBody);
-        setSeries(response.data || []);
       } catch (error) {
         console.error('Error fetching widget data:', error);
         setSeries([]);

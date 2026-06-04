@@ -29,6 +29,8 @@ export interface WidgetConfig {
   chartType: ChartType;
   deviceId: string;
   metricIds: string[];
+  /** When set, the widget renders this saved calculation instead of metrics. */
+  calculationId?: string;
   timeRange: {
     type: 'relative' | 'absolute';
     value: string; // e.g., 'last_24h' or ISO timestamp
