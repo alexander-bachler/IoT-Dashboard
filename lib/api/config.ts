@@ -42,10 +42,10 @@ export const API_ENDPOINTS = {
   // Dashboards
   dashboards: {
     list: '/api/v1/dashboards',
-    get: (id: number) => `/api/v1/dashboards/${id}`,
+    get: (id: string) => `/api/v1/dashboards/${id}`,
     create: '/api/v1/dashboards',
-    update: (id: number) => `/api/v1/dashboards/${id}`,
-    delete: (id: number) => `/api/v1/dashboards/${id}`,
+    update: (id: string) => `/api/v1/dashboards/${id}`,
+    delete: (id: string) => `/api/v1/dashboards/${id}`,
   },
 
   // Data Sources

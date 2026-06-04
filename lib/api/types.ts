@@ -154,15 +154,24 @@ export interface Dashboard {
   id: string;
   name: string;
   description?: string;
-  layout: DashboardLayout;
+  // The FastAPI backend stores the layout + settings in a free-form `config`.
+  config: DashboardLayout;
+  is_favorite?: boolean;
   is_public?: boolean;
-  created_by?: string;
+  owner_id?: string;
   created_at: string;
   updated_at?: string;
 }
 
+export interface DashboardSettings {
+  globalTimeRange?: string | null;
+  globalRefreshInterval?: number;
+  selectedDataSourceIds?: string[];
+}
+
 export interface DashboardLayout {
   widgets: DashboardWidget[];
+  settings?: DashboardSettings;
 }
 
 export interface DashboardWidget {
@@ -181,7 +190,8 @@ export interface DashboardWidget {
 export interface CreateDashboardDto {
   name: string;
   description?: string;
-  layout: DashboardLayout;
+  config: DashboardLayout;
+  is_favorite?: boolean;
   is_public?: boolean;
 }
 

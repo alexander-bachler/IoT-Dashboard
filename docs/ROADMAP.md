@@ -266,6 +266,13 @@ für „beide Säulen“; 3–5 schließen die heutigen Stub-Lücken.
   Intervall-Auswahl (Off/10s/30s/1m/5m) in der Toolbar; ein `refreshNonce` im
   Store löst alle Widgets im Gleichschritt neu aus (transient, nicht
   persistiert). Macht das Dashboard zu einer Live-Monitoring-Fläche. Build grün.
+- **Dashboard-Persistenz-Contract gefixt** (war end-to-end kaputt, gleicher
+  Drift wie Phase 0): Frontend sendete `layout`, das Backend verlangt aber
+  `config` (required) → Create scheiterte mit 422; zudem `parseInt(uuid)`→`NaN`
+  auf den int-typisierten Pfadparametern. Jetzt: Frontend spricht `config`,
+  Backend-Dashboard-IDs `int`→`UUID`, kein `parseInt` mehr. Die globalen
+  Einstellungen (Zeitraum/Refresh/Data-Sources) werden als `config.settings`
+  **pro Dashboard** mitgespeichert und beim Laden wiederhergestellt.
 
 **Noch offen (Phase 2, Auswahl):**
 - Dashboard-**Variablen** (z. B. `$device`) mit Auto-Binding an Widgets &

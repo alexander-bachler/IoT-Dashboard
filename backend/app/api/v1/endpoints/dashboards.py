@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
+from uuid import UUID
 
 from app.db.database import get_db
 from app.models.user import User
@@ -36,7 +37,7 @@ async def get_dashboards(
 
 @router.get("/{dashboard_id}", response_model=DashboardResponse)
 async def get_dashboard(
-    dashboard_id: int,
+    dashboard_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -79,7 +80,7 @@ async def create_dashboard(
 
 @router.put("/{dashboard_id}", response_model=DashboardResponse)
 async def update_dashboard(
-    dashboard_id: int,
+    dashboard_id: UUID,
     dashboard_in: DashboardUpdate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -112,7 +113,7 @@ async def update_dashboard(
 
 @router.delete("/{dashboard_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_dashboard(
-    dashboard_id: int,
+    dashboard_id: UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):

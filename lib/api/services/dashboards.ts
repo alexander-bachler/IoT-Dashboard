@@ -22,7 +22,7 @@ export const dashboardsApi = {
    * Get a single dashboard by ID
    */
   async getById(id: string): Promise<Dashboard> {
-    const response = await apiClient.get<Dashboard>(API_ENDPOINTS.dashboards.get(parseInt(id)));
+    const response = await apiClient.get<Dashboard>(API_ENDPOINTS.dashboards.get(id));
     return response.data;
   },
 
@@ -39,7 +39,7 @@ export const dashboardsApi = {
    */
   async update(id: string, data: Partial<CreateDashboardDto>): Promise<Dashboard> {
     const response = await apiClient.put<Dashboard>(
-      API_ENDPOINTS.dashboards.update(parseInt(id)),
+      API_ENDPOINTS.dashboards.update(id),
       data
     );
     return response.data;
@@ -49,6 +49,6 @@ export const dashboardsApi = {
    * Delete a dashboard
    */
   async delete(id: string): Promise<void> {
-    await apiClient.delete(API_ENDPOINTS.dashboards.delete(parseInt(id)));
+    await apiClient.delete(API_ENDPOINTS.dashboards.delete(id));
   },
 };
