@@ -16,7 +16,7 @@
 
 | Bereich | Status | Persistenz | Zentrale Lücke |
 |---|---|---|---|
-| Zeitreihen-Analyse | ✅ funktionsfähig | TimescaleDB (Continuous Aggregates + `time_bucket`, LTTB für Rohdaten) → FastAPI → ECharts | keine gespeicherten Ansichten (Saved Views) |
+| Zeitreihen-Analyse | ✅ funktionsfähig | TimescaleDB (Continuous Aggregates + `time_bucket`, LTTB für Rohdaten) → FastAPI → ECharts | Saved Views noch client-seitig (localStorage), nicht cross-device |
 | Dashboards | ✅ funktionsfähig | Postgres via FastAPI + Zustand/localStorage | Templates ohne Auto-Binding, keine Variablen/Filter, kein Sharing |
 | Calculations | ❌ Stub | nur Schema | keine Formel-Engine, kein Runner, kein Backend |
 | Reports | ❌ Stub | nur Schema | kein Scheduler, keine PDF/Excel-Erzeugung, kein Mailversand |
@@ -238,8 +238,15 @@ für „beide Säulen“; 3–5 schließen die heutigen Stub-Lücken.
 - **UI auf „cleaner SaaS“ umgestellt** (eigener `frontend-design`-Skill):
   neutrale Flächen, eine Akzentfarbe, responsive Navigation inkl. aller Routen,
   theme-fähiger ETL-Node-Editor. Production-Build (`next build`) grün.
+- **Saved Views** (Explorer): benannte Snapshots der Explorer-Konfiguration
+  (Gerät, Metriken, Zeitraum, Chart-Typ, Aggregation, Compare) speichern, laden
+  und löschen. Persistenz aktuell client-seitig via Zustand-`persist`
+  (localStorage); Config-Shape ist serialisierbar für späteren Umzug auf einen
+  FastAPI-Endpunkt (cross-device).
 
 **Noch offen (Phase 1):**
+- **Saved Views → Backend**: optionaler Umzug von localStorage auf einen
+  owner-scoped FastAPI-Endpunkt für geräteübergreifende Synchronisierung.
 - **Per-Metrik-Limit** im Rohdatenpfad: das globale `LIMIT` greift bei
   Multi-Metrik-Abfragen über alle Reihen gemeinsam (Window-Function/Subquery je
   Metrik nötig). LTTB mildert, behebt es aber nicht.

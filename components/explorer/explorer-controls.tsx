@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useExplorerStore, ChartType, TimeRangePreset } from '@/lib/stores/explorer-store';
 import { RefreshCw, BarChart3 } from 'lucide-react';
 import { CustomTimeRangeDialog } from './custom-time-range-dialog';
+import { SavedViews } from './saved-views';
 import apiClient from '@/lib/api/client';
 
 interface Device {
@@ -96,6 +97,11 @@ export function ExplorerControls({}: ExplorerControlsProps = {}) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Saved Views */}
+        <SavedViews />
+
+        <div className="border-t" />
+
         {/* Device Selection */}
         <div className="space-y-2">
           <Label>Device</Label>
