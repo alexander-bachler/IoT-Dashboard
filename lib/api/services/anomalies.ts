@@ -37,7 +37,7 @@ export const anomaliesApi = {
    * Update anomaly status (acknowledge, resolve, etc.)
    */
   update: async (id: string, data: UpdateAnomalyDto): Promise<Anomaly> => {
-    const response = await apiClient.patch<Anomaly>(`${BASE_PATH}/${id}`, data);
+    const response = await apiClient.put<Anomaly>(`${BASE_PATH}/${id}`, data);
     return response.data;
   },
 

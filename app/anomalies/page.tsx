@@ -16,11 +16,11 @@ function AnomalyCard({ anomaly }: { anomaly: any }) {
   const { mutate: updateAnomaly, isPending } = useUpdateAnomaly();
 
   const handleAcknowledge = () => {
+    // acknowledged_by is set server-side from the authenticated user
     updateAnomaly({
       id: anomaly.id,
       data: {
-        status: 'acknowledged',
-        acknowledged_by: 'current_user', // TODO: Get from auth context
+        acknowledged: true,
       },
     });
   };

@@ -142,8 +142,8 @@ export interface AnomalyQueryParams {
 }
 
 export interface UpdateAnomalyDto {
-  status?: 'new' | 'acknowledged' | 'resolved' | 'false_positive';
-  acknowledged_by?: string;
+  // acknowledged_by is set server-side from the authenticated user
+  acknowledged?: boolean;
 }
 
 // ============================================

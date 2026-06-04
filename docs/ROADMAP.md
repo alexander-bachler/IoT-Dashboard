@@ -25,9 +25,21 @@
 
 **Architektur-Notiz (wichtig):** Es existieren zwei Backends parallel –
 Next.js-API-Routes (Drizzle) und FastAPI (SQLAlchemy). Die produktive Linie ist
-**FastAPI** (so für LineMetrics entschieden). Die Mess-Abfrage läuft aber noch
-über die Next.js-Route `app/api/measurements/query/route.ts`. Das muss
-konsolidiert werden (siehe Phase 0).
+**FastAPI** (so für LineMetrics entschieden). Tatsächlich nutzt das Frontend
+aber **beide** Backends gleichzeitig (belegt durch Code-Analyse):
+- **FastAPI** (`apiClient` → `NEXT_PUBLIC_API_URL`/`:8000`): Dashboards,
+  Data-Sources, Measurements, Anomalies, LineMetrics.
+- **Next.js/Drizzle** (relative `fetch('/api/...')`): Geräte-/Metrik-Picker
+  (`components/explorer/explorer-controls.tsx`, `components/dashboard/add-widget-dialog.tsx`
+  → `/api/devices`, `/api/devices/{id}/metrics`), Annotations
+  (`components/charts/chart-with-annotations.tsx` → `/api/annotations`) und
+  Datenqualität (`components/explorer/data-quality-badge.tsx` → `/api/quality`).
+
+Zusätzlich zeigt der Measurements-Client (`lib/api/services/measurements.ts`)
+auf FastAPI-Endpunkte, die dort fehlten (`/time-series`, `/downsample`,
+`/latest`, `/statistics`, `/range`), und der Anomalies-Client weicht in Pfad/
+Methode ab (`getAll` GET `/` statt POST `/query`, `/statistics` statt `/stats`).
+Das wird in Phase 0 konsolidiert.
 
 ---
 
@@ -45,9 +57,14 @@ konsolidiert werden (siehe Phase 0).
 - **Derived Metrics & Reports = First-Class-Daten:** Calculations erzeugen
   „virtuelle Metriken“, die überall (Explorer, Widgets, Reports, Alerts)
   wie normale Metriken verwendbar sind.
-- **LineMetrics-Objektmodell als Use-Case-Struktur:** Die kuratierte Hierarchie
-  (Gebäude→Etage→Raum→Messpunkt) ist ideal, um Use-Case-Dashboards
-  automatisch zu instanziieren (siehe Phase 2).
+- **LineMetrics: Device-Modell zuerst, Objektmodell optional.** Nicht jeder
+  Kunde pflegt ein Objektmodell. Standard-Discovery/Sync läuft daher über das
+  **Device-Modell** (`/v2/devices/all`, `/v2/devices?id=`,
+  `/v2/device-inputs/{id}/data`) – so bereits im FastAPI-Service umgesetzt.
+  Das **Objektmodell** (`/v2/children`, `/v2/data/{measurementId}`) wird nur
+  **zusätzlich** genutzt, wenn vorhanden – z. B. um Use-Case-Dashboards aus der
+  kuratierten Hierarchie (Gebäude→Etage→Raum→Messpunkt) automatisch zu
+  instanziieren (Kür, nicht Pflicht).
 
 ---
 
@@ -82,7 +99,8 @@ Persistenz (`backend/app/api/v1/endpoints/dashboards.py`, `use-dashboards.ts`),
 
 **Ausbau:**
 1. **Template-Auto-Binding** – Templates statt leerer Metrik-IDs automatisch an
-   reale Metriken binden (per Heuristik/Mapping bzw. via LineMetrics-Objektmodell).
+   reale Metriken binden (per Heuristik/Mapping über Geräte/Metriken; optional
+   über das LineMetrics-Objektmodell, falls beim Kunden vorhanden).
    → erweitert `app/dashboards/page.tsx` + neuer „Template anwenden“-Hook.
 2. **Dashboard-Variablen / Filter** – z. B. Geräte-/Standort-Selektor oben,
    der alle Widgets filtert (wie Grafana-Variablen). → neues `variables`-Feld im
@@ -157,6 +175,31 @@ Schema `db/schema-alerts.ts`.
 
 Aufwand grob: S < M < L. Phasen 0–2 liefern den größten unmittelbaren Mehrwert
 für „beide Säulen“; 3–5 schließen die heutigen Stub-Lücken.
+
+### Phase 0 – Status (laufend)
+
+**Erledigt:**
+- FastAPI-Measurements vervollständigt: `GET /time-series`, `/downsample`,
+  `/latest`, `/statistics`, `DELETE /range` inkl. portierter TimescaleDB-
+  `time_bucket`-Aggregation (`backend/app/api/v1/endpoints/measurements.py`).
+- Anomaly-Quittierung backend-autoritativ (`acknowledged_by` = eingeloggter
+  User) + Frontend-Payload/Methode korrigiert (PUT, `{ acknowledged: true }`).
+- Toten Doppel-Code entfernt: Next.js-Routes `anomalies`, `data-sources`,
+  `measurements/query` sowie ungenutzter `lib/services/alert-service.ts`.
+
+**Noch offen (Restbacklog Phase 0):**
+- Geräte-/Metrik-Picker auf FastAPI umstellen (`explorer-controls.tsx`,
+  `add-widget-dialog.tsx`) und danach die Next.js-Routes `devices` +
+  `devices/[id]/metrics` entfernen.
+- Annotations & Datenqualität nach FastAPI portieren
+  (`/api/v1/annotations`, `/api/v1/quality`) und Komponenten umstellen; danach
+  Next.js-Routes `annotations` + `quality` entfernen.
+- Anomalies-Listen-Client an FastAPI angleichen (`getAll` → POST `/query`,
+  `getStatistics` → `/stats`).
+- Erst wenn keine `@/db`-Importe mehr bestehen: Drizzle-Runtime entfernen und
+  DDL-Quelle festlegen (Alembic ODER Drizzle-Migrations als alleinige Quelle).
+- **Verifikation gegen laufenden Stack** (FastAPI + TimescaleDB) für die neuen
+  Measurement-Endpunkte steht noch aus (im Container nicht ausführbar).
 
 ---
 
