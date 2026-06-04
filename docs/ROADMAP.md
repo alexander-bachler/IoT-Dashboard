@@ -20,7 +20,7 @@
 | Dashboards | ✅ funktionsfähig | Postgres via FastAPI + Zustand/localStorage | globaler Zeitraum- & Data-Source-Filter vorhanden; Templates ohne Auto-Binding, kein Sharing |
 | Calculations | ✅ funktionsfähig | FastAPI (`/calculations`) + Formel-Engine + Editor mit Charts + **als Dashboard-Widget** nutzbar | — |
 | Reports | ❌ Stub | nur Schema | kein Scheduler, keine PDF/Excel-Erzeugung, kein Mailversand |
-| Alerts/Rules | ⚠️ teilweise | Postgres (Rules+Events) | keine Auswertung bei Ingest, kein Notification-Versand |
+| Alerts/Rules | ⚙️ Backend (Engine + CRUD + Evaluate) | FastAPI (`/alerts`) + reine Regel-Engine | Frontend, Auswertung bei Ingest, Notification-Versand (Stub) offen |
 | LineMetrics-Anbindung | ✅ neu verdrahtet | FastAPI (OAuth2 password grant) | E2E-Test gegen echte API ausstehend |
 
 **Architektur-Notiz (wichtig):** Es existieren zwei Backends parallel –
@@ -331,7 +331,19 @@ für „beide Säulen“; 3–5 schließen die heutigen Stub-Lücken.
   (zeigt Punkte/Aggregat/letzten Wert + Validierungsfehler), Speichern/Löschen.
   `next build` grün.
 
+- **Alerts – Backend** (`/api/v1/alerts`): reine Regel-Engine
+  (`app/services/alert_rules.py`: Schwellwert-Vergleiche, pytest-getestet) +
+  owner-scoped CRUD für Alert-Rules (Scoping über metric→device→data_source) +
+  `POST /rules/{id}/evaluate`, das die Metrik über einen Zeitraum prüft und je
+  Breach ein `alert_events`-Event anlegt, + Events-Liste + Acknowledge. Die
+  **Notification-Zustellung ist ein klar markierter Stub** (Kanäle werden
+  gespeichert/geloggt, kein echter Versand). Engine via pytest, CRUD/Validierung
+  im Live-E2E-Smoke-Test. **Offen:** Frontend, Auswertung bei Ingest, echter
+  Versand.
+
 **Noch offen (Phase 2, Auswahl):**
+- **Alerts – Frontend** + Auswertung bei Ingest + echter Notification-Versand
+  (E-Mail/Webhook).
 - Calculation-Ergebnisse als **Dashboard-Widget** verwendbar machen (auf der
   Calculations-Seite werden sie bereits als Chart dargestellt). **Erledigt** —
   „Add Widget" bietet jetzt die Quelle *Calculation*; das Widget evaluiert

@@ -261,6 +261,39 @@ def main() -> int:
 
     r.check("calculations CRUD + preview", calculations_roundtrip)
 
+    # --- Alerts (rules + events; validation without seeded metrics) ---------
+    print("\nAlerts:")
+
+    def alerts_checks():
+        status, rules = client.request("GET", f"{API}/alerts/rules")
+        assert status == 200 and isinstance(rules, list), f"rules list: {status}"
+        status, events = client.request("GET", f"{API}/alerts/events")
+        assert status == 200 and isinstance(events, list), f"events list: {status}"
+
+        fake_metric = "00000000-0000-0000-0000-000000000000"
+        # Invalid condition must be rejected (400) before any ownership check.
+        status, _ = client.request(
+            "POST", f"{API}/alerts/rules",
+            json_body={
+                "name": "smoke", "metric_id": fake_metric,
+                "condition": "between", "threshold": 1, "severity": "warning",
+            },
+        )
+        assert status == 400, f"expected 400 for bad condition, got {status}"
+
+        # Valid rule but a metric the user doesn't own -> 404.
+        status, _ = client.request(
+            "POST", f"{API}/alerts/rules",
+            json_body={
+                "name": "smoke", "metric_id": fake_metric,
+                "condition": "greater_than", "threshold": 1, "severity": "critical",
+            },
+        )
+        assert status == 404, f"expected 404 for unknown metric, got {status}"
+        return "rules/events list + validation (400) + ownership (404) OK"
+
+    r.check("alerts rules/events + validation", alerts_checks)
+
     # --- Summary ------------------------------------------------------------
     total = r.passed + r.failed
     print(f"\n{r.passed}/{total} checks passed.")
