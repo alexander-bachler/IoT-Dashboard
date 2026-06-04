@@ -18,7 +18,7 @@
 |---|---|---|---|
 | Zeitreihen-Analyse | ✅ funktionsfähig | TimescaleDB (Continuous Aggregates + `time_bucket`, LTTB für Rohdaten) → FastAPI → ECharts | Saved Views noch client-seitig (localStorage), nicht cross-device |
 | Dashboards | ✅ funktionsfähig | Postgres via FastAPI + Zustand/localStorage | globaler Zeitraum- & Data-Source-Filter vorhanden; Templates ohne Auto-Binding, kein Sharing |
-| Calculations | ⚙️ Backend fertig | FastAPI (`/calculations`) + sichere Formel-Engine | Frontend-Wiring (Service/Hooks/Seite) offen |
+| Calculations | ✅ funktionsfähig | FastAPI (`/calculations`) + sichere Formel-Engine + Editor mit Live-Preview | Persistenz von Ergebnissen / Verwendung in Widgets offen |
 | Reports | ❌ Stub | nur Schema | kein Scheduler, keine PDF/Excel-Erzeugung, kein Mailversand |
 | Alerts/Rules | ⚠️ teilweise | Postgres (Rules+Events) | keine Auswertung bei Ingest, kein Notification-Versand |
 | LineMetrics-Anbindung | ✅ neu verdrahtet | FastAPI (OAuth2 password grant) | E2E-Test gegen echte API ausstehend |
@@ -316,11 +316,16 @@ für „beide Säulen“; 3–5 schließen die heutigen Stub-Lücken.
   bucketweise über die Quell-Metriken (time_bucket, auf gemeinsamen Buckets
   ausgerichtet) via `POST /preview` (ad-hoc) und `POST /{id}/evaluate`.
   Owner-scoped. Engine mit pytest abgedeckt (`tests/test_formula_evaluator.py`),
-  CRUD+Preview im Live-E2E-Smoke-Test. **Offen:** Frontend-Wiring.
+  CRUD+Preview im Live-E2E-Smoke-Test. **Alle drei CI-Jobs grün.**
+- **Calculations – Frontend**: API-Service + React-Query-Hooks
+  (`lib/api/services/calculations.ts`, `lib/hooks/use-calculations.ts`) +
+  neue `app/calculations/page.tsx` als echter Editor: Variablen → Geräte-/
+  Metrik-Picker, Formel-Eingabe, **Live-Preview** über `POST /preview`
+  (zeigt Punkte/Aggregat/letzten Wert + Validierungsfehler), Speichern/Löschen.
+  `next build` grün.
 
 **Noch offen (Phase 2, Auswahl):**
-- **Calculations – Frontend**: Service/Hooks + `app/calculations/page.tsx`
-  (aktuell Mock) an das neue Backend anbinden (Liste, Editor mit Live-Preview).
+- Calculation-Ergebnisse als Serie in Charts/Widgets verwendbar machen.
 - Dashboard-**Variablen** (z. B. `$device`) mit Auto-Binding an Widgets &
   Templates.
 - Dashboard-**Sharing** / Persistenz pro Dashboard im Backend.

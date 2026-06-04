@@ -196,6 +196,51 @@ export interface CreateDashboardDto {
 }
 
 // ============================================
+// Calculation Types
+// ============================================
+
+export interface Calculation {
+  id: string;
+  name: string;
+  description?: string;
+  formula: string;
+  /** variable name -> source metric id */
+  source_metric_ids: Record<string, string>;
+  unit?: string;
+  aggregation_type: string; // none | sum | avg | min | max
+  created_by?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface CreateCalculationDto {
+  name: string;
+  description?: string;
+  formula: string;
+  source_metric_ids: Record<string, string>;
+  unit?: string;
+  aggregation_type?: string;
+}
+
+export interface CalculationPreviewDto {
+  formula: string;
+  source_metric_ids: Record<string, string>;
+  start_time?: string;
+  end_time?: string;
+  interval?: string;
+  aggregation_type?: string;
+}
+
+export interface CalculationResult {
+  name?: string;
+  unit?: string;
+  interval: string;
+  data: Array<{ time: string; value: number }>;
+  aggregate?: number | null;
+  points: number;
+}
+
+// ============================================
 // Chart Configuration Types
 // ============================================
 

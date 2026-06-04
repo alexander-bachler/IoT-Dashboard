@@ -91,4 +91,15 @@ export const API_ENDPOINTS = {
     create: '/api/v1/anomalies',
     update: (id: string) => `/api/v1/anomalies/${id}`,
   },
+
+  // Calculations
+  calculations: {
+    list: '/api/v1/calculations',
+    create: '/api/v1/calculations',
+    get: (id: string) => `/api/v1/calculations/${id}`,
+    update: (id: string) => `/api/v1/calculations/${id}`,
+    delete: (id: string) => `/api/v1/calculations/${id}`,
+    preview: '/api/v1/calculations/preview',
+    evaluate: (id: string) => `/api/v1/calculations/${id}/evaluate`,
+  },
 } as const;
