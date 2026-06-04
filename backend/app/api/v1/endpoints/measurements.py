@@ -505,33 +505,34 @@ async def get_time_series(
     if interval:
         return await _bucketed_series(db, owned, start_time, end_time, interval, aggregation)
 
-    # Raw points (no aggregation)
-    stmt = (
-        select(Measurement)
-        .where(
-            Measurement.metric_id.in_(list(owned.keys())),
-            Measurement.time >= start_time,
-            Measurement.time <= end_time,
-        )
-        .order_by(Measurement.time.asc())
-    )
-    if limit:
-        stmt = stmt.limit(limit)
-
-    rows = (await db.execute(stmt)).scalars().all()
-
-    # Group rows per metric (preserving time order) so LTTB runs per series.
-    grouped: Dict[UUID, List[Measurement]] = {}
-    for mrow in rows:
-        grouped.setdefault(mrow.metric_id, []).append(mrow)
-
+    # Raw points (no aggregation). Query per metric so both the row cap (`limit`)
+    # and LTTB reduction apply per series — a single shared query with a global
+    # LIMIT would truncate every metric at the same global cut-off, dropping the
+    # tail of all series. Sequential awaits keep the AsyncSession safe.
     series: List[TimeSeriesData] = []
-    for metric_id, mrows in grouped.items():
-        name, unit, _ = owned[metric_id]
+    for metric_id, (name, unit, _device) in owned.items():
+        stmt = (
+            select(Measurement)
+            .where(
+                Measurement.metric_id == metric_id,
+                Measurement.time >= start_time,
+                Measurement.time <= end_time,
+            )
+            .order_by(Measurement.time.asc())
+        )
+        if limit:
+            stmt = stmt.limit(limit)
+
+        mrows = (await db.execute(stmt)).scalars().all()
+        if not mrows:
+            continue
+
+        # Visually-lossless point reduction for large raw series (LTTB).
         if max_points and len(mrows) > max_points:
             xs = [m.time.timestamp() for m in mrows]
             ys = [float(m.value) for m in mrows]
             mrows = [mrows[k] for k in _lttb_indices(xs, ys, max_points)]
+
         series.append(
             TimeSeriesData(
                 metric_id=metric_id,

@@ -243,13 +243,13 @@ für „beide Säulen“; 3–5 schließen die heutigen Stub-Lücken.
   und löschen. Persistenz aktuell client-seitig via Zustand-`persist`
   (localStorage); Config-Shape ist serialisierbar für späteren Umzug auf einen
   FastAPI-Endpunkt (cross-device).
+- **Per-Metrik-Limit gefixt**: der Rohdatenpfad von `GET /time-series` fragt
+  jetzt pro Metrik einzeln ab (gebundene Query + LTTB je Reihe), statt mit einem
+  globalen `LIMIT` alle Reihen am selben Cut-off abzuschneiden.
 
 **Noch offen (Phase 1):**
 - **Saved Views → Backend**: optionaler Umzug von localStorage auf einen
   owner-scoped FastAPI-Endpunkt für geräteübergreifende Synchronisierung.
-- **Per-Metrik-Limit** im Rohdatenpfad: das globale `LIMIT` greift bei
-  Multi-Metrik-Abfragen über alle Reihen gemeinsam (Window-Function/Subquery je
-  Metrik nötig). LTTB mildert, behebt es aber nicht.
 - **Freshness-Hinweis:** Die Cagg-Refresh-Policies haben `end_offset` (1h/1d);
   je nach TimescaleDB-Realtime-Setting kann der jeweils letzte Bucket aus
   Rohdaten ergänzt werden. Für Live-Kurzbereiche greift ohnehin der Rohdaten-
